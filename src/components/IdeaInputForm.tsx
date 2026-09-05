@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   Mic,
@@ -14,8 +14,13 @@ import {
   Flame,
   Search,
   GraduationCap,
+  AlertCircle,
+  X,
+  RotateCcw,
+  Languages,
 } from 'lucide-react';
 import { GeneratePlanInput } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface IdeaInputFormProps {
   onSubmit: (input: GeneratePlanInput) => void;
@@ -25,12 +30,43 @@ interface IdeaInputFormProps {
   onSwitchToAcademicResearch?: () => void;
 }
 
-const SAMPLE_IDEAS = [
-  'متجر إلكتروني لاشتراكات القهوة المختصة مع بوكس شهري حسب ذوق العميل',
-  'تطبيق لتنظيم بطولات البادل وحجز الملاعب وتحديات اللاعبين في الحي',
-  'وكالة رقمية تقدم خدمات أتمتة خدمة العملاء بالذكاء الاصطناعي للمتاجر الصغيرة',
-  'منصة تفاعلية لربط أصحاب المهارات اليدوية والحرفية بالعملاء والشركات',
-  'مشروع مطبخ سحابي يقدم وجبات صحية غنية بالبروتين للرياضيين وموظفي الشركات',
+interface SamplePromptItem {
+  textAr: string;
+  textEn: string;
+  type: 'business' | 'research';
+}
+
+const SAMPLE_PROMPTS: SamplePromptItem[] = [
+  {
+    textAr: 'متجر إلكتروني لاشتراكات القهوة المختصة مع بوكس شهري حسب ذوق العميل',
+    textEn: 'E-commerce store for specialty coffee subscriptions with tailored monthly boxes',
+    type: 'business',
+  },
+  {
+    textAr: 'تطبيق لتنظيم بطولات البادل وحجز الملاعب وتحديات اللاعبين في الحي',
+    textEn: 'Mobile app for organizing padel tournaments, court bookings, and player rankings',
+    type: 'business',
+  },
+  {
+    textAr: 'دراسة أثر تطبيقات الذكاء الاصطناعي على كفاءة التعليم العالي وسلاسل الإمداد',
+    textEn: 'Academic research on the impact of generative AI on higher education efficiency',
+    type: 'research',
+  },
+  {
+    textAr: 'وكالة رقمية تقدم خدمات أتمتة خدمة العملاء بالذكاء الاصطناعي للمتاجر الصغيرة',
+    textEn: 'Digital agency offering AI customer service automation for small e-commerce stores',
+    type: 'business',
+  },
+  {
+    textAr: 'بحث أكاديمي حول استراتيجيات التسعير النفسي وأثرها على ولاء المستهلك في المنصات الناشئة',
+    textEn: 'Research study on psychological pricing strategies and consumer brand loyalty in startups',
+    type: 'research',
+  },
+  {
+    textAr: 'مشروع مطبخ سحابي يقدم وجبات صحية غنية بالبروتين للرياضيين وموظفي الشركات',
+    textEn: 'Cloud kitchen venture delivering high-protein healthy meals for corporate employees',
+    type: 'business',
+  },
 ];
 
 const INDUSTRIES = [
@@ -70,13 +106,24 @@ export const IdeaInputForm: React.FC<IdeaInputFormProps> = ({
   onSwitchToTrendingSearch,
   onSwitchToAcademicResearch,
 }) => {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
+
   const [idea, setIdea] = useState('');
   const [field, setField] = useState('');
   const [budgetLevel, setBudgetLevel] = useState<'منخفضة جداً / صفرية' | 'متوسطة' | 'مرتفعة / استثمارية' | 'غير محدد'>('غير محدد');
   const [timeframe, setTimeframe] = useState<'أسبوعين (إطلاق سريع)' | 'شهر إلى 3 أشهر' | '6 أشهر فأكثر' | 'غير محدد'>('غير محدد');
   const [targetMarket, setTargetMarket] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // Web Speech API State
   const [isRecording, setIsRecording] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState<boolean>(true);
+  const [speechLang, setSpeechLang] = useState<'ar-SA' | 'en-US'>(() => (isEn ? 'en-US' : 'ar-SA'));
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
 
   // Rotating loading messages
@@ -91,49 +138,141 @@ export const IdeaInputForm: React.FC<IdeaInputFormProps> = ({
     return () => clearInterval(interval);
   }, [isLoading]);
 
-  // Voice recording handler
+  // Check Web Speech API availability on mount
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+    }
+  }, []);
+
+  // Sync speech language when interface language changes
+  useEffect(() => {
+    setSpeechLang(isEn ? 'en-US' : 'ar-SA');
+  }, [isEn]);
+
+  // Clean up speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  // Web Speech API Toggle & Event Handlers
   const handleToggleVoice = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('ميزة التعرف الصوتي غير مدعومة في متصفحك الحالي. يمكنك كتابة الفكرة مباشرة.');
+      setSpeechSupported(false);
+      setSpeechError(
+        isEn
+          ? 'Speech recognition is not supported in this browser. Please type directly or use Chrome/Edge.'
+          : 'التعرف الصوتي غير مدعوم في متصفحك الحالي. يمكنك كتابة الفكرة مباشرة أو استخدام متصفح حديث مثل Chrome أو Edge.'
+      );
       return;
     }
 
     if (isRecording) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.warn('Error stopping speech recognition:', e);
+        }
+      }
       setIsRecording(false);
+      setInterimTranscript('');
       return;
     }
 
+    setSpeechError(null);
+    setInterimTranscript('');
+
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'ar-SA';
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognitionRef.current = recognition;
+      recognition.lang = speechLang;
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
       recognition.onstart = () => {
         setIsRecording(true);
+        setSpeechError(null);
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setIdea((prev) => (prev ? `${prev} ${transcript}` : transcript));
-        setIsRecording(false);
+        let finalChunk = '';
+        let currentInterim = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalChunk += transcript + ' ';
+          } else {
+            currentInterim += transcript;
+          }
+        }
+
+        if (finalChunk.trim()) {
+          setIdea((prev) => {
+            const trimmed = prev.trim();
+            return trimmed ? `${trimmed} ${finalChunk.trim()}` : finalChunk.trim();
+          });
+        }
+
+        setInterimTranscript(currentInterim);
       };
 
-      recognition.onerror = () => {
-        setIsRecording(false);
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition warning:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+          setSpeechError(
+            isEn
+              ? 'Microphone permission was denied. Please allow microphone access in your browser to dictate.'
+              : 'تم رفض إذن الميكروفون في المتصفح. يرجى السماح بالوصول للميكروفون من إعدادات المتصفح.'
+          );
+          setIsRecording(false);
+        } else if (event.error === 'no-speech') {
+          // Continue listening without resetting
+        } else if (event.error === 'network') {
+          setSpeechError(
+            isEn
+              ? 'Network connection error with speech recognition service.'
+              : 'حدث خطأ في الاتصال بشبكة خدمة التعرف على الصوت.'
+          );
+          setIsRecording(false);
+        } else if (event.error !== 'aborted') {
+          setSpeechError(
+            isEn
+              ? `Speech recognition issue: ${event.error}`
+              : `تعذر التعرف الصوتي (${event.error})`
+          );
+          setIsRecording(false);
+        }
       };
 
       recognition.onend = () => {
         setIsRecording(false);
+        setInterimTranscript('');
       };
 
       recognition.start();
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.warn('Failed to start speech recognition:', e);
       setIsRecording(false);
+      setSpeechError(
+        isEn
+          ? 'Could not access microphone. Please check your browser permissions.'
+          : 'تعذر تشغيل الميكروفون. يرجى التحقق من أذونات المتصفح.'
+      );
     }
   };
 
@@ -235,64 +374,235 @@ export const IdeaInputForm: React.FC<IdeaInputFormProps> = ({
       {/* Main Input Card */}
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200/90 shadow-lg shadow-slate-100 overflow-hidden">
         <div className="p-5 sm:p-7">
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="idea-input" className="block text-sm font-bold text-slate-800">
-              ما هي فكرة مشروعك؟
-            </label>
-            <button
-              type="button"
-              onClick={handleToggleVoice}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                isRecording
-                  ? 'bg-red-50 text-red-600 border border-red-200 animate-pulse'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-              }`}
-            >
-              {isRecording ? (
-                <>
-                  <MicOff className="w-3.5 h-3.5" />
-                  <span>جاري الاستماع... اضغط للإيقاف</span>
-                </>
-              ) : (
-                <>
-                  <Mic className="w-3.5 h-3.5 text-slate-600" />
-                  <span>إملاء صوتي</span>
-                </>
+          {/* Header with Title and Speech Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
+            <div>
+              <label htmlFor="idea-input" className="block text-sm font-bold text-slate-800">
+                {isEn ? 'What is your business idea or research query?' : 'ما هي فكرة مشروعك أو استفسارك البحثي؟'}
+              </label>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {isEn
+                  ? 'Type your query or use voice dictation directly via the Web Speech API.'
+                  : 'يمكنك كتابة فكرتك أو إملاؤها صوتياً مباشرة عبر تقنية التعرف الصوتي الذكية.'}
+              </p>
+            </div>
+
+            {/* Speech and Text Controls Bar */}
+            <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
+              {/* Dictation Language Selector */}
+              <div className="inline-flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200/80 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isRecording) handleToggleVoice();
+                    setSpeechLang('ar-SA');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                    speechLang === 'ar-SA'
+                      ? 'bg-white text-indigo-700 shadow-2xs font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="الإملاء الصوتي باللغة العربية"
+                >
+                  عربي
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isRecording) handleToggleVoice();
+                    setSpeechLang('en-US');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                    speechLang === 'en-US'
+                      ? 'bg-white text-indigo-700 shadow-2xs font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Voice dictation in English"
+                >
+                  EN
+                </button>
+              </div>
+
+              {/* Clear Text button */}
+              {idea.trim().length > 0 && !isLoading && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdea('');
+                    setInterimTranscript('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                  title={isEn ? 'Clear text' : 'مسح النص'}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{isEn ? 'Clear' : 'مسح'}</span>
+                </button>
               )}
-            </button>
+
+              {/* Web Speech Dictation Toggle Button */}
+              <button
+                type="button"
+                id="btn-voice-dictation"
+                role="button"
+                aria-pressed={isRecording}
+                aria-label={
+                  isRecording
+                    ? (isEn ? 'Stop voice dictation' : 'إيقاف الإملاء الصوتي')
+                    : (isEn ? 'Start voice dictation' : 'بدء الإملاء الصوتي لفكرتك')
+                }
+                onClick={handleToggleVoice}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                  isRecording
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-200 animate-pulse'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300'
+                }`}
+              >
+                {isRecording ? (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                    </span>
+                    <MicOff className="w-3.5 h-3.5" />
+                    <span>{isEn ? 'Listening... Click to Stop' : 'جاري الاستماع... اضغط للإيقاف'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{isEn ? 'Dictate with Voice' : 'إملاء صوتي مباشر'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Speech Error Banner (No blocking window.alert) */}
+          {speechError && (
+            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start justify-between gap-2 animate-fadeIn">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">{isEn ? 'Voice Dictation Notice' : 'تنبيه التعرف الصوتي'}</p>
+                  <p className="text-amber-800 text-[11px] mt-0.5">{speechError}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSpeechError(null)}
+                className="p-1 hover:bg-amber-100 text-amber-600 rounded-md transition-colors cursor-pointer"
+                title={isEn ? 'Dismiss' : 'إغلاق'}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Live Recording Equalizer & Interim Transcript Bar */}
+          {isRecording && (
+            <div className="mb-2.5 p-2.5 bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-xl shadow-inner border border-indigo-700/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2.5">
+                {/* Visual Audio Waveform Equalizer */}
+                <div className="flex items-end gap-0.5 h-4 px-1">
+                  <span className="w-1 bg-rose-400 rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-3"></span>
+                  <span className="w-1 bg-amber-400 rounded-full animate-[pulse_0.4s_ease-in-out_infinite_0.1s] h-4"></span>
+                  <span className="w-1 bg-cyan-400 rounded-full animate-[pulse_0.7s_ease-in-out_infinite_0.2s] h-2.5"></span>
+                  <span className="w-1 bg-emerald-400 rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.3s] h-3.5"></span>
+                </div>
+                <div className="text-[11px] text-slate-200">
+                  <span className="font-bold text-white">
+                    {isEn ? 'Dictating in English' : 'الإملاء الصوتي بالعربية'}:
+                  </span>{' '}
+                  <span className="text-slate-300">
+                    {interimTranscript ? (
+                      <span className="text-amber-300 font-semibold italic">"{interimTranscript}"</span>
+                    ) : (
+                      isEn ? 'Speak clearly into your microphone...' : 'تحدث بوضوح، وسيتم تدوين كلامك فوراً...'
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] text-slate-400">
+                  {speechLang === 'ar-SA' ? 'ar-SA' : 'en-US'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleToggleVoice}
+                  className="px-2.5 py-1 bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  {isEn ? 'Done' : 'تم / إيقاف'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Textarea */}
           <div className="relative">
             <textarea
               id="idea-input"
+              ref={textareaRef}
               rows={4}
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               disabled={isLoading}
-              placeholder="مثال: بدي اعمل مشروع تطبيق لخدمة توصيل الطلبات الخاصة بين المدن، مع تتبع مباشر وتوفير أسعار اقتصادية للطرود العاجلة..."
-              className="w-full px-4 py-3.5 text-sm sm:text-base bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-indigo-500 rounded-xl outline-none transition-all resize-y text-slate-800 placeholder:text-slate-400 focus:ring-3 focus:ring-indigo-100"
+              placeholder={
+                isEn
+                  ? "Example: I want to launch an on-demand specialty coffee subscription service with personalized monthly boxes, direct farm sourcing, and automated customer reorders..."
+                  : "مثال: أريد تأسيس متجر إلكتروني لاشتراكات القهوة المختصة مع بوكس شهري، أو بحث علمي عن أثر الذكاء الاصطناعي في إدارة الأعمال..."
+              }
+              className={`w-full px-4 py-3.5 text-sm sm:text-base bg-slate-50/70 hover:bg-slate-50 focus:bg-white border rounded-xl outline-none transition-all resize-y text-slate-800 placeholder:text-slate-400 ${
+                isRecording
+                  ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50/20'
+                  : 'border-slate-300 focus:border-indigo-500 focus:ring-3 focus:ring-indigo-100'
+              }`}
             />
+            {/* Live screen reader announcement */}
+            <span className="sr-only" aria-live="polite">
+              {isRecording ? 'Voice dictation is listening' : 'Voice dictation is idle'}
+            </span>
           </div>
 
-          {/* Sample Ideas Carousel / Chips */}
+          {/* Sample Ideas & Research Queries Carousel / Chips */}
           <div className="mt-3">
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">
-              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-              <span>أو جرّب إحدى هذه الأفكار الملهمة بنقرة واحدة:</span>
+            <div className="flex items-center justify-between gap-1.5 text-xs text-slate-500 mb-2">
+              <div className="flex items-center gap-1.5">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span className="font-semibold text-slate-700">
+                  {isEn ? 'Or try one of these suggested ideas & research topics:' : 'أو جرّب أحد هذه النماذج الجاهزة للأفكار والمسائل البحثية:'}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400">
+                {isEn ? 'Click to fill' : 'انقر للتعبئة الفورية'}
+              </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {SAMPLE_IDEAS.map((sample, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setIdea(sample)}
-                  disabled={isLoading}
-                  className="text-xs bg-slate-100/90 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200/80 transition-all text-right"
-                >
-                  {sample.length > 55 ? `${sample.substring(0, 55)}...` : sample}
-                </button>
-              ))}
+              {SAMPLE_PROMPTS.map((sample, idx) => {
+                const sampleText = isEn ? sample.textEn : sample.textAr;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setIdea(sampleText);
+                      textareaRef.current?.focus();
+                    }}
+                    disabled={isLoading}
+                    className="text-xs bg-slate-100/90 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200/80 transition-all text-right flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {sample.type === 'research' ? (
+                      <span className="px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">
+                        {isEn ? 'Research' : 'بحث'}
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold">
+                        {isEn ? 'Business' : 'مشروع'}
+                      </span>
+                    )}
+                    <span>{sampleText.length > 55 ? `${sampleText.substring(0, 55)}...` : sampleText}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
