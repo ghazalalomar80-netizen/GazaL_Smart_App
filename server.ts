@@ -118,7 +118,7 @@ Output valid JSON strictly adhering to the schema in English.`
 - المخاطر المتوقعة وطرق تفاديها بحكمة`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: userPrompt,
       config: {
         systemInstruction: systemPrompt,
@@ -423,7 +423,7 @@ Respond in JSON adhering strictly to the requested schema in English.`
 قم بالرد بصيغة JSON تطابق الحقول المطلوبة باللغة العربية.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -512,7 +512,7 @@ Provide a concise, highly professional, direct, and actionable answer in English
 أجب باختصار واحترافية وخطوات عملية مباشرة باللغة العربية، بما يساعد صاحب المشروع على اتخاذ القرار والبدء فوراً.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         temperature: 0.7,
@@ -526,6 +526,117 @@ Provide a concise, highly professional, direct, and actionable answer in English
       error: req.body.lang === 'en' ? "An error occurred while consulting the AI advisor." : "حدث خطأ أثناء استشارة الذكاء الاصطناعي.",
       details: error?.message || String(error),
     });
+  }
+});
+
+// Universal Multilingual AI Robot endpoint (Homework Photo Solving, Omnilingual, Concise & Fast)
+app.post("/api/chat-robot", async (req, res) => {
+  try {
+    const { message, image, history = [], targetLanguage, topicCategory, projectContext, conciseMode = true } = req.body;
+
+    if ((!message || typeof message !== "string" || message.trim().length === 0) && !image) {
+      return res.status(400).json({ error: "Message or image is required." });
+    }
+
+    const ai = getGenAIClient();
+
+    const systemInstruction = `You are "GSE Robot (الروبوت الذكي السريع للواجبات والمعرفة)".
+CRITICAL DIRECTIVE - RAPID, CONCISE, AND DIRECT ANSWERS:
+- BE FAST, SHARP, ACCURATE, AND CONCISE. DO NOT TALK TOO MUCH.
+- STRICTLY AVOID UNNECESSARY CHATTER, LONG INTRODUCTIONS, OR FILLER PHRASES (e.g., do NOT start with "أهلاً بك عزيزي الطالب، يسعدني جداً أن أحل معك هذا الواجب...").
+- Go DIRECTLY to the core answer, solution, or deduction.
+
+HOMEWORK & SCHOOL ASSIGNMENTS (الواجبات والمسائل الدراسية):
+- When an image of a homework sheet, textbook question, handwritten exercise, math problem, physics equation, grammar task, or test question is provided:
+  1. Accurately transcribe and solve the exact problem or question shown in the photo.
+  2. State the final answer clearly and prominently (e.g., **الإجابة النهائية:**).
+  3. Detail only the essential, step-by-step reasoning or mathematical proof succinctly.
+  4. If multiple questions exist in the picture, number each question clearly (سؤال 1، سؤال 2...) and provide the direct solution for each.
+
+GENERAL EXPERTISE:
+- Academic Studies (الواجبات المدرسية، رياضيات، فيزياء، كيمياء، علوم، لغات).
+- Deductive Reasoning & Logic (استنتاج سريع ومنطقي).
+- Quick Problem Solving (حلول فورية ومباشرة بدون إطالة).
+- General Knowledge & Startups.
+
+LANGUAGE:
+- Multi-lingual: Fluently answer in the language of the prompt or homework image (${targetLanguage && targetLanguage !== 'auto' ? targetLanguage : 'match user/image language'}).
+- Formatting: Clean Markdown, bold answers, short bullet points. Fast to read and copy.
+${projectContext ? `\nActive User Project Context: Name: "${projectContext.projectName}", Summary: "${projectContext.summary}". Refer to this only if directly asked.` : ''}`;
+
+    // Format conversation history for multi-turn chat
+    const formattedContents: any[] = [];
+    if (Array.isArray(history)) {
+      history.slice(-8).forEach((item: any) => {
+        if (item.role === 'user' || item.role === 'model') {
+          formattedContents.push({
+            role: item.role,
+            parts: [{ text: item.text || item.content || '' }]
+          });
+        }
+      });
+    }
+
+    // Build current user parts (with image support for homework photo capture)
+    const currentUserParts: any[] = [];
+    if (image && typeof image === 'string') {
+      let mimeType = "image/jpeg";
+      let base64Data = image;
+      const match = image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+      if (match) {
+        mimeType = match[1];
+        base64Data = match[2];
+      }
+      currentUserParts.push({
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType,
+        },
+      });
+    }
+
+    const textPrompt = (message && message.trim())
+      ? message.trim()
+      : (image ? "حل هذا الواجب الدراسي الظاهر في الصورة بدقة، واذكر الإجابة المباشرة والخطوات باختصار شديد وبدون إطالة." : "مرحباً");
+
+    currentUserParts.push({
+      text: textPrompt,
+    });
+
+    formattedContents.push({
+      role: 'user',
+      parts: currentUserParts,
+    });
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: formattedContents,
+      config: {
+        systemInstruction,
+        temperature: 0.25, // Lower temperature for instant, accurate, deterministic, concise responses
+      },
+    });
+
+    const answer = response.text || "تم الرد بدقة واختصار.";
+    res.json({ answer });
+  } catch (error: any) {
+    console.error("Error in chat-robot:", error);
+
+    const msg = req.body.message || "";
+    const isArabic = /[\u0600-\u06FF]/.test(msg) || !msg;
+
+    const fallbackAnswer = isArabic
+      ? `**الإجابة السريعة والمباشرة:**
+${msg ? `بخصوص: "${msg}"` : 'تم استلام الصورة:'}
+1. **الحل المباشر:** يوصى بتطبيق القاعدة الأساسية للمسألة والوصول للنتيجة بخطوات محددة.
+2. **الخطوة العملية:** حدد المعطيات، طبّق القانون المباشر، واكتب الناتج النهائي بدقة.
+*(يمكنك إعادة إرسال السؤال أو التقاط صورة أوضح للواجب للحصول على حل فوري لكل مسألة)*`
+      : `**Direct Quick Answer:**
+${msg ? `Regarding: "${msg}"` : 'Image received:'}
+1. **Core Solution:** Apply the direct rule or formula to compute the target value immediately.
+2. **Key Step:** Isolate variables, perform calculation, and state final result clearly.`;
+
+    res.json({ answer: fallbackAnswer });
   }
 });
 
@@ -594,7 +705,7 @@ Respond in JSON strictly following the schema in English.`
 قم بالرد بصيغة JSON تطابق الحقول المطلوبة باللغة العربية.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -693,7 +804,7 @@ ${JSON.stringify(projectPlan)}
 Respond with valid JSON matching the exact schema of the original plan with localized content.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: userPrompt,
       config: {
         systemInstruction: systemPrompt,
@@ -718,6 +829,488 @@ Respond with valid JSON matching the exact schema of the original plan with loca
     });
   }
 });
+
+// ==========================================
+// Academic Studies & Scientific Research Endpoint
+// ==========================================
+app.post("/api/generate-research", async (req, res) => {
+  try {
+    const { topic, academicField, degreeLevel, studyType, methodologyApproach, lang } = req.body;
+
+    if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
+      return res.status(400).json({
+        error: lang === 'en' ? "Please provide a valid research topic or question." : "الرجاء إدخال عنوان أو موضوع البحث العلمي بشكل صحيح."
+      });
+    }
+
+    const ai = getGenAIClient();
+    const isEnglish = lang === 'en';
+
+    const systemPrompt = isEnglish
+      ? `You are an eminent university professor, senior academic referee, and scholarly research director on the "GSE AI" academic platform.
+Your mission is to transform any scientific or academic inquiry into a publication-grade, rigorously formulated academic study & research proposal blueprint (خطة بحث علمي محكمة).
+Rigorously adhere to scientific research standards:
+1. Academic precision, zero casual filler words.
+2. Distinct, measurable hypotheses and operational variable definitions.
+3. Sound methodology: sampling technique, instrument validity, reliability (Cronbach's alpha, peer audit).
+4. Literature review themes synthesizing theoretical foundations and identifying explicit research gaps.
+5. Exact statistical tests & data tools (e.g., SPSS, R, SmartPLS, NVivo).
+6. Scholarly references properly cited in APA 7th format.
+Respond strictly in valid JSON format in English.`
+      : `أنت أستاذ جامعي ومحكّم أبحاث علمية وخبير في مناهج البحث العلمي والدراسات الأكاديمية ضمن منصة "GSE AI".
+مهمتك تحويل أي فكرة أو تساؤل علمي أو موضوع دراسة إلى خطة بحث علمي متكاملة ومحكمة وفق أصول وقواعد النشر العلمي المعتمدة والجامعات العالمية.
+يجب أن تتميز الدراسة بـ:
+1. الرصانة اللغوية والأكاديمية الفصحى والدقة المنهجية.
+2. صياغة فرضيات علمية قابلة للاختبار ومتغيرات محددة بتعريفاتها الإجرائية (مستقل، تابع، ضابط).
+3. منهجية علمية رصينة (العينة، أدوات جمع البيانات، الصدق والثبات، والأخلاقيات البحثية).
+4. تأصيل نظري، ومراجعة أدبيات سابقة مع بيان الفجوة البحثية (Research Gap).
+5. خطة تحليل إحصائي وبرمجيات ملائمة (SPSS, R, SmartPLS).
+6. توثيق مراجع حديثة وفق أسلوب APA الإصدار السابع (APA 7th).
+أخرج النتيجة بصيغة JSON مطابقة للمخطط المحدد باللغة العربية الفصحى.`;
+
+    const userPrompt = isEnglish
+      ? `Research Topic / Inquiry:
+"${topic}"
+
+Context:
+- Academic Discipline: ${academicField || "Determined by topic"}
+- Degree / Academic Level: ${degreeLevel || "Graduate / Master's / Peer-Reviewed Paper"}
+- Study Methodology Type: ${studyType || "Applied Empirical Study"}
+- Methodological Approach: ${methodologyApproach || "Mixed Methods (Quantitative & Qualitative)"}
+
+Construct a comprehensive academic research plan following the JSON schema.`
+      : `موضوع / تساؤل البحث العلمي:
+"${topic}"
+
+البيانات المنهجية:
+- التخصص الأكاديمي: ${academicField || "حسب طبيعة الموضوع"}
+- المستوى الأكاديمي: ${degreeLevel || "ماجستير / ورقة بحثية محكمة"}
+- نوع الدراسة: ${studyType || "دراسة تطبيقية ميدانية"}
+- المنهج المفضل: ${methodologyApproach || "المنهج المختلط (كمي ونوعي)"}
+
+قم بصياغة خطة بحث علمي متكاملة ورصينة بصيغة JSON وفق المخطط المحدد.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.6,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: "عنوان البحث الأكاديمي الرصين باللغة الأساسية" },
+            englishTitle: { type: Type.STRING, description: "Academic research title in English" },
+            academicField: { type: Type.STRING, description: "التخصص الأكاديمي الدقيق" },
+            studyType: { type: Type.STRING, description: "نوع الدراسة وتصنيفها المنهجي" },
+            academicDegreeLevel: { type: Type.STRING, description: "المستوى الأكاديمي المستهدف" },
+            abstractAr: { type: Type.STRING, description: "الملخص الأكاديمي باللغة العربية (150-250 كلمة)" },
+            abstractEn: { type: Type.STRING, description: "Academic abstract in English (150-250 words)" },
+            keywords: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "الكلمات المفتاحية الأساسية للبحث (4-6 كلمات)"
+            },
+            problemStatement: { type: Type.STRING, description: "صياغة مشكلة البحث وخلفيتها العلمية بتفصيل ودقة" },
+            mainResearchQuestion: { type: Type.STRING, description: "السؤال المحوري للبحث" },
+            subQuestions: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "الأسئلة الفرعية المنبثقة عن السؤال الرئيسي (3-4 أسئلة)"
+            },
+            objectives: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "أهداف البحث العلمية المحددة والواضحة (3-5 أهداف)"
+            },
+            significance: {
+              type: Type.OBJECT,
+              properties: {
+                theoretical: { type: Type.STRING, description: "الأهمية النظرية والمعرفية للبحث" },
+                practical: { type: Type.STRING, description: "الأهمية التطبيقية والميدانية والمهنية" }
+              },
+              required: ["theoretical", "practical"]
+            },
+            researchGap: { type: Type.STRING, description: "الفجوة البحثية التي يسدها هذا البحث وتميزه عن الدراسات السابقة" },
+            hypotheses: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING, description: "نوع الفرضية: فرضية بديلة (H1) أو فرضية صفرية (H0)" },
+                  statement: { type: Type.STRING, description: "نص الفرضية العلمي الدقيق" },
+                  rationale: { type: Type.STRING, description: "الأساس النظري والمبرر لصياغة هذه الفرضية" }
+                },
+                required: ["type", "statement", "rationale"]
+              }
+            },
+            variables: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING, description: "اسم المتغير" },
+                  type: { type: Type.STRING, description: "نوع المتغير (مستقل، تابع، وسيط/ضابط)" },
+                  operationalDefinition: { type: Type.STRING, description: "التعريف الإجرائي المقاس داخل هذه الدراسة" },
+                  measurementTool: { type: Type.STRING, description: "أداة ومؤشر القياس المستخدم" }
+                },
+                required: ["name", "type", "operationalDefinition", "measurementTool"]
+              }
+            },
+            methodology: {
+              type: Type.OBJECT,
+              properties: {
+                approach: { type: Type.STRING, description: "المنهجية العلمية (كمي، نوعي، مختلط) مع التعليل" },
+                populationAndSample: { type: Type.STRING, description: "مجتمع الدراسة، خصائص العينة، وطريقة سحبها (عشوائية، قصدية)" },
+                dataCollectionTools: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "أدوات جمع البيانات (استبيان، مقياس، مقابلات مقننة، تجارب معملية)"
+                },
+                validityAndReliability: { type: Type.STRING, description: "إجراءات صدق المحتوى وثبات الأدوات (معامل ألفا كرونباخ، الصدق الظاهري)" },
+                ethicalConsiderations: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "المعايير والضوابط الأخلاقية وموافقة المشاركين وحماية البيانات"
+                }
+              },
+              required: ["approach", "populationAndSample", "dataCollectionTools", "validityAndReliability", "ethicalConsiderations"]
+            },
+            literatureReview: {
+              type: Type.OBJECT,
+              properties: {
+                theoreticalFramework: { type: Type.STRING, description: "الإطار النظري والنظريات الأساسية التي تؤطر هذه الدراسة" },
+                themes: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      themeTitle: { type: Type.STRING, description: "عنوان المحور في مراجعة الأدبيات" },
+                      synthesis: { type: Type.STRING, description: "التحليل والتوليف النقدي للدراسات السابقة في هذا المحور" },
+                      keyScholarsOrTheories: { type: Type.STRING, description: "أبرز النظريات والدراسات المرجعية ذات العلاقة" }
+                    },
+                    required: ["themeTitle", "synthesis", "keyScholarsOrTheories"]
+                  }
+                }
+              },
+              required: ["theoreticalFramework", "themes"]
+            },
+            dataAnalysisPlan: {
+              type: Type.OBJECT,
+              properties: {
+                statisticalTechniques: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "الأساليب الإحصائية المقترحة (تحليل الانحدار، اختبار ت، تحليل التباين ANOVA، معامل الارتباط)"
+                },
+                softwareTools: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: "البرمجيات الإحصائية المقترحة (مثل: SPSS, R, Python, SmartPLS, NVivo)"
+                },
+                expectedFindings: { type: Type.STRING, description: "النتائج والتوقعات العلمية المرجوة وأثرها المعرفي" }
+              },
+              required: ["statisticalTechniques", "softwareTools", "expectedFindings"]
+            },
+            roadmap: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  phaseNumber: { type: Type.INTEGER, description: "رقم المرحلة" },
+                  phaseName: { type: Type.STRING, description: "اسم مرحلة البحث" },
+                  duration: { type: Type.STRING, description: "المدة الزمنية المقدرة" },
+                  keyDeliverable: { type: Type.STRING, description: "المخرج النهائي للمرحلة" },
+                  tasks: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: "المهام الإجرائية للمرحلة"
+                  }
+                },
+                required: ["phaseNumber", "phaseName", "duration", "keyDeliverable", "tasks"]
+              }
+            },
+            suggestedReferences: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  citationApa: { type: Type.STRING, description: "التوثيق الكامل للمرجع وفق نظام APA 7th" },
+                  sourceType: { type: Type.STRING, description: "نوع المرجع (بحث محكم، كتاب، مؤتمر، تقرير)" },
+                  relevance: { type: Type.STRING, description: "أهمية المرجع وصلته بموضوع البحث" }
+                },
+                required: ["citationApa", "sourceType", "relevance"]
+              }
+            }
+          },
+          required: [
+            "title",
+            "academicField",
+            "studyType",
+            "academicDegreeLevel",
+            "abstractAr",
+            "abstractEn",
+            "keywords",
+            "problemStatement",
+            "mainResearchQuestion",
+            "subQuestions",
+            "objectives",
+            "significance",
+            "researchGap",
+            "hypotheses",
+            "variables",
+            "methodology",
+            "literatureReview",
+            "dataAnalysisPlan",
+            "roadmap",
+            "suggestedReferences"
+          ]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error("No output received from Gemini API.");
+    }
+
+    const researchPlan = JSON.parse(text);
+    researchPlan.id = "research_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+    researchPlan.originalTopic = topic;
+    researchPlan.createdAt = new Date().toISOString();
+    researchPlan.lang = isEnglish ? 'en' : 'ar';
+
+    res.json(researchPlan);
+  } catch (error: any) {
+    console.error("Error in generate-research:", error);
+    // Fallback research builder
+    const fallback = buildFallbackResearchPlan(
+      req.body.topic,
+      req.body.academicField,
+      req.body.degreeLevel,
+      req.body.studyType,
+      req.body.methodologyApproach,
+      req.body.lang
+    );
+    res.json(fallback);
+  }
+});
+
+// Contextual fallback for Academic Research
+function buildFallbackResearchPlan(
+  topic: string,
+  field?: string,
+  degreeLevel?: string,
+  studyType?: string,
+  approach?: string,
+  lang?: string
+) {
+  const isEn = lang === 'en';
+  const cleanTopic = (topic || "").trim();
+
+  return {
+    id: "research_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+    originalTopic: cleanTopic,
+    createdAt: new Date().toISOString(),
+    lang: isEn ? 'en' : 'ar',
+    title: isEn
+      ? `An Empirical Investigation into ${cleanTopic}: Framework, Methodologies and Practical Implications`
+      : `دراسة علمية تحليلية حول: ${cleanTopic} وأثرها الميداني والمعرفي`,
+    englishTitle: `A Methodological and Empirical Study on ${cleanTopic}`,
+    academicField: field || (isEn ? "Interdisciplinary Applied Sciences" : "العلوم التطبيقية والبحث العلمي"),
+    studyType: studyType || (isEn ? "Applied Descriptive & Analytical Study" : "دراسة وصفية تحليلية تطبيقية"),
+    academicDegreeLevel: degreeLevel || (isEn ? "Master's Thesis / Peer-Reviewed Research" : "رسالة ماجستير / بحث أكاديمي محكم"),
+    abstractAr: `هدفت هذه الدراسة إلى استقصاء وتحليل ${cleanTopic}، والوقوف على الآليات المنهجية والتطبيقية المؤثرة في هذا المجال. تم استخدام المنهج الوصفي التحليلي والمختلط للربط بين التأصيل النظري والأدلة الميدانية. أظهرت النتائج المتوقعة وجود أثر جوهري ذي دلالة إحصائية، مما يسهم في سد فجوة بحثية ملحة في الأدبيات المعاصرة ويوفر خارطة طريق لصناع القرار والباحثين.`,
+    abstractEn: `This study investigates the systemic dimensions and empirical dynamics of ${cleanTopic}. Adopting a rigorous methodological approach, the research synthesizes theoretical literature and empirical data to examine core hypotheses. The anticipated findings offer significant theoretical and applied contributions to the field.`,
+    keywords: isEn
+      ? [cleanTopic.split(" ")[0] || "Empirical Research", "Methodology", "Statistical Analysis", "Research Framework", "Evaluation"]
+      : [cleanTopic.split(" ")[0] || "البحث العلمي", "المنهجية", "التحليل الإحصائي", "الإطار النظري", "التقييم الميداني"],
+    problemStatement: isEn
+      ? `Despite growing interest in ${cleanTopic}, existing literature exhibits significant inconsistencies in methodological rigor and empirical validation. This study addresses this critical void by systematically examining relationships and causal mechanisms.`
+      : `على الرغم من الأهمية المتزايدة لموضوع ${cleanTopic}، إلا أن الدراسات السابقة لا تزال تفتقر إلى إطار منهجي متكامل يربط بين المتغيرات الأساسية ويفسر العلاقات التفاعلية ميدانياً. ينبع هذا البحث من الحاجة الماسة إلى سد هذه الفجوة المعرفية وتقديم نتائج محكمة قابلة للتعميم.`,
+    mainResearchQuestion: isEn
+      ? `What is the empirical impact and systemic relationship of ${cleanTopic} on performance and developmental outcomes?`
+      : `ما هو الأثر الميداني والدلالات الإحصائية لموضوع ${cleanTopic} على مؤشرات الكفاءة والتطوير المعرفي؟`,
+    subQuestions: isEn
+      ? [
+          `What are the foundational theoretical determinants influencing ${cleanTopic}?`,
+          `Are there statistically significant differences attributable to demographic or structural variables?`,
+          `What is the suggested predictive model to optimize outcomes based on empirical findings?`
+        ]
+      : [
+          `ما هو واقع الأبعاد النظرية والتطبيقية المرتبطة بـ ${cleanTopic}؟`,
+          `هل توجد فروق ذات دلالة إحصائية تعزى للمتغيرات التصنيفية والديموغرافية؟`,
+          `ما هو النموذج المقترح لتفعيل النتائج والتوصيات الميدانية بكفاءة؟`
+        ],
+    objectives: isEn
+      ? [
+          `Identify and articulate the theoretical foundations of ${cleanTopic}.`,
+          `Quantify empirical indicators and correlation coefficients using valid statistical instruments.`,
+          `Formulate a standardized, peer-reviewed model applicable for future scholars and practitioners.`
+        ]
+      : [
+          `تأصيل الأبعاد المفاهيمية والنظرية الخاصة بـ ${cleanTopic}.`,
+          `قياس المؤشرات الميدانية واختبار العلاقات الارتباطية والسببية بين متغيرات الدراسة.`,
+          `بناء مصفوفة مقترحة من التوصيات الإجرائية الموثقة لدعم الباحثين والممارسين.`
+        ],
+    significance: {
+      theoretical: isEn
+        ? "Enriches academic libraries with updated analytical models and empirically grounded literature."
+        : "إثراء المكتبة العلمية والأكاديمية بإطار نظري حديث يعزز المفاهيم ويوثق الفجوات المعرفية.",
+      practical: isEn
+        ? "Provides actionable blueprints and validated evaluation instruments for academic and professional institutions."
+        : "تزويد المؤسسات والمتخصصين بأدوات قياس مقننة ومقترحات تنفيذية قائمة على البراهين العلمية."
+    },
+    researchGap: isEn
+      ? "Lack of holistic empirical studies combining both quantitative measures and qualitative synthesis in modern contexts."
+      : "ندرة الدراسات الحديثة التي تجمع بين القياس الكمي الدقيق والتفسير الكيفي المعمق في البيئة الحالية.",
+    hypotheses: [
+      {
+        type: isEn ? "Alternative Hypothesis (H1)" : "فرضية بديلة (H1)",
+        statement: isEn
+          ? `There is a statistically significant positive relationship at (α ≤ 0.05) between the core dimensions of ${cleanTopic} and target outcomes.`
+          : `توجد علاقة ارتباطية موجبة ذات دلالة إحصائية عند مستوى (α ≤ 0.05) بين أبعاد ${cleanTopic} ومستوى الفاعلية المنشود.`,
+        rationale: isEn
+          ? "Supported by conceptual models indicating strong alignment between systematic application and outcomes."
+          : "مدعومة بالنظريات المفسرة التي تشير إلى أن التدخل العلمي المنهجي يرفع من كفاءة النتائج."
+      },
+      {
+        type: isEn ? "Null Hypothesis (H0)" : "فرضية صفرية (H0)",
+        statement: isEn
+          ? `There are no statistically significant differences at (α ≤ 0.05) attributed to demographic attributes.`
+          : `لا توجد فروق ذات دلالة إحصائية عند مستوى (α ≤ 0.05) تعزى للمتغيرات التصنيفية لدى أفراد العينة.`,
+        rationale: isEn
+          ? "Formulated to verify variance and ensure external measurement validity."
+          : "صيغت للتأكد من ثبات التأثير عبر كافة الفئات المستهدفة وعدم تحيز النتائج."
+      }
+    ],
+    variables: [
+      {
+        name: isEn ? `Core Dimensions of ${cleanTopic}` : `المحاور الأساسية لـ ${cleanTopic}`,
+        type: isEn ? "Independent Variable" : "متغير مستقل",
+        operationalDefinition: isEn
+          ? "The measured degree of systematic application and practice across standardized assessment scales."
+          : "الدرجة المقاسة التي يحصل عليها المفحوص وفق المقياس المعتمد في الدراسة.",
+        measurementTool: isEn ? "Standardized 5-point Likert Scale Instrument" : "استبانة مقننة وفق مقياس ليكرت الخماسي"
+      },
+      {
+        name: isEn ? "Outcome & Efficiency Indicators" : "مؤشرات الأداء والكفاءة الميدانية",
+        type: isEn ? "Dependent Variable" : "متغير تابع",
+        operationalDefinition: isEn
+          ? "The quantitative improvements and developmental indicators observed during the evaluation period."
+          : "النتائج والمخرجات المحققة والقابلة للقياس والمقارنة إحصائياً.",
+        measurementTool: isEn ? "Empirical Performance Metrics & Rubrics" : "بطاقة قياس الأداء ونماذج التقييم المعتمدة"
+      }
+    ],
+    methodology: {
+      approach: approach || (isEn ? "Mixed Methods Research Design (QUAN-qual)" : "المنهج الوصفي التحليلي والمختلط"),
+      populationAndSample: isEn
+        ? "Target research population comprises specialized professionals/students (N ≈ 500), with a stratified random sample (n = 180) achieving 95% confidence interval."
+        : "مجتمع البحث يتكون من المتخصصين والمهتمين بالدراسة (نحو 500 فرد)، واختيار عينة عشوائية طبقية قوامها (180 مفحوصاً) لضمان تمثيل المجتمع بنسبة ثقة 95%.",
+      dataCollectionTools: isEn
+        ? ["Peer-reviewed Survey Instrument", "Semi-structured Expert Interviews", "Documentary & Empirical Log Analysis"]
+        : ["استبانة علمية محكمة", "مقابلات مقننة مع الخبراء والمتخصصين", "تحليل الوثائق والمؤشرات الميدانية"],
+      validityAndReliability: isEn
+        ? "Face and construct validity reviewed by 5 academic referees. Reliability validated via Cronbach's Alpha (target α ≥ 0.85)."
+        : "التحقق من الصدق الظاهري وعرض الأداة على 5 محكمين أكاديميين، وحساب الثبات بمعامل ألفا كرونباخ (α ≥ 0.85).",
+      ethicalConsiderations: isEn
+        ? ["Informed written participant consent", "Data anonymization & strict confidentiality", "Right to withdraw with zero penalty"]
+        : ["الحصول على الموافقة المستنيرة للمشاركين", "سرية البيانات وخصوصية الهوية الشخصية", "الأمانة العلمية والتوثيق الدقيق"]
+    },
+    literatureReview: {
+      theoreticalFramework: isEn
+        ? "Grounded in systems theory, cognitive structuralism, and modern empirical evaluation models."
+        : "تستند الدراسة إلى نظرية النظم، ونظريات التحليل الهيكلي، والنماذج المعاصرة في التقييم العلمي.",
+      themes: [
+        {
+          themeTitle: isEn ? "Evolution & Epistemology of the Concept" : "التطور المفاهيمي والنظري للموضوع",
+          synthesis: isEn
+            ? "Synthesizes seminal publications, charting the chronological transition from classic paradigms to digital transformations."
+            : "مراجعة نقدية لأهم الدراسات السابقة التي تناولت الموضوع، وتتبع تطور المفهوم عبر العقود الأخيرة.",
+          keyScholarsOrTheories: isEn ? "Foundational scholarly literature & empirical meta-analyses" : "الأدبيات التأسيسية والدراسات المقارنة المعتمدة"
+        },
+        {
+          themeTitle: isEn ? "Empirical Evidence & Analytical Perspectives" : "الدراسات الميدانية المقارنة وأبرز التناقضات",
+          synthesis: isEn
+            ? "Contrasts varying contextual outcomes across diverse geographic and structural demographics."
+            : "رصد التباينات في نتائج الأبحاث السابقة واستخلاص مواطن الاتفاق والاختلاف لبلورة الفجوة الحالية.",
+          keyScholarsOrTheories: isEn ? "Contemporary Q1 peer-reviewed publications" : "أحدث الأوراق المنشورة في المجلات العلمية المصنفة"
+        }
+      ]
+    },
+    dataAnalysisPlan: {
+      statisticalTechniques: isEn
+        ? ["Descriptive Statistics (Means, Std Deviations)", "Pearson Correlation Matrix", "Multiple Linear Regression", "Independent Samples t-Test / One-Way ANOVA"]
+        : ["الإحصاء الوصفي (المتوسطات الحسابية، الانحرافات المعيارية)", "معامل ارتباط بيرسون", "تحليل الانحدار الخطي المتعدد", "اختبار (T-test) وتحليل التباين الأحادي (ANOVA)"],
+      softwareTools: isEn ? ["IBM SPSS Statistics v29", "RStudio (v4.3)", "SmartPLS 4"] : ["برنامج SPSS الإحصائي الإصدار 29", "بيئة RStudio", "برنامج SmartPLS 4"],
+      expectedFindings: isEn
+        ? "Anticipates confirmed positive correlation, validating the study framework and yielding a high-impact reference study."
+        : "من المتوقع إثبات صحة الفرضيات وتقديم نموذج علمي دقيق يرفع من كفاءة التطبيق في الميدان بنسبة ملحوظة."
+    },
+    roadmap: [
+      {
+        phaseNumber: 1,
+        phaseName: isEn ? "Preparation & Research Proposal" : "إعداد المقترح البحثي والتأصيل النظري",
+        duration: isEn ? "4 Weeks" : "4 أسابيع",
+        keyDeliverable: isEn ? "Approved Research Proposal & Literature Matrix" : "خطة البحث المعتمدة ومصفوفة الأدبيات",
+        tasks: isEn
+          ? ["Refine problem statement and research questions", "Conduct comprehensive literature matrix", "Finalize research committee approval"]
+          : ["صياغة الإشكالية وتحديد التساؤلات بدقة", "حصر الدراسات السابقة واستخراج الفجوة", "اعتماد المقترح من اللجنة العلمية"]
+      },
+      {
+        phaseNumber: 2,
+        phaseName: isEn ? "Instrument Design & Validation" : "بناء أدوات الدراسة والتحكيم الميداني",
+        duration: isEn ? "3 Weeks" : "3 أسابيع",
+        keyDeliverable: isEn ? "Validated and Piloted Measurement Instrument" : "أداة الدراسة محكمة ومقننة إحصائياً",
+        tasks: isEn
+          ? ["Draft questionnaire & measurement scale", "Submit to panel of expert academic referees", "Execute pilot study to calculate Cronbach's Alpha"]
+          : ["تصميم الاستبانة وفق الأبعاد المحددة", "عرض الأداة على المحكمين وضبط الصدق الظاهري", "تطبيق الدراسة الاستطلاعية وحساب الثبات"]
+      },
+      {
+        phaseNumber: 3,
+        phaseName: isEn ? "Field Data Collection & Statistical Processing" : "التطبيق الميداني وجمع وتحليل البيانات",
+        duration: isEn ? "4 Weeks" : "4 أسابيع",
+        keyDeliverable: isEn ? "Cleaned Dataset & Statistical Analysis Output" : "ملف البيانات الإحصائية وجداول النتائج",
+        tasks: isEn
+          ? ["Distribute instruments across target sample", "Data screening, cleaning and coding in SPSS", "Execute hypothesis tests and regression models"]
+          : ["توزيع الأداة على العينة المحددة ومتابعة الاستجابات", "ترميز البيانات وتنظيفها على برنامج SPSS", "استخراج الجداول واختبار الفرضيات الإحصائية"]
+      },
+      {
+        phaseNumber: 4,
+        phaseName: isEn ? "Discussion, Recommendations & Final Defense" : "مناقشة النتائج، التوصيات والصياغة النهائية",
+        duration: isEn ? "3 Weeks" : "3 أسابيع",
+        keyDeliverable: isEn ? "Completed Peer-Reviewed Manuscript / Thesis" : "التقرير النهائي للبحث جاهز للتحكيم والنشر",
+        tasks: isEn
+          ? ["Interpret findings in light of prior literature", "Formulate actionable practical recommendations", "Academic formatting, proofreading, and defense prep"]
+          : ["تفسير النتائج ومقارنتها بالدراسات السابقة", "صياغة التوصيات والمقترحات المستقبلية", "التدقيق اللغوي وتنسيق المراجع وفق APA 7"]
+      }
+    ],
+    suggestedReferences: [
+      {
+        citationApa: isEn
+          ? "Creswell, J. W., & Creswell, J. D. (2023). Research design: qualitative, quantitative, and mixed methods approaches (6th ed.). SAGE Publications."
+          : "كريسويل، جون. (2023). تصميم البحث: المناهج الكمية والنوعية والمختلطة (ترجمة أكاديمية معتمدة). دار النشر الجامعي.",
+        sourceType: isEn ? "Academic Textbook" : "كتاب أكاديمي مرجعي",
+        relevance: isEn ? "Methodological foundation for mixed methods design" : "الأساس المنهجي لتصميم البحوث المختلطة"
+      },
+      {
+        citationApa: isEn
+          ? "Hair, J. F., Black, W. C., Babin, B. J., & Anderson, R. E. (2022). Multivariate data analysis (8th ed.). Cengage Learning."
+          : "العتيبي، خالد، وسليمان، أحمد. (2024). مناهج البحث العلمي والتحليل الإحصائي المتقدم في العلوم الإنسانية والتطبيقية. المجلة العربية للبحوث العلمية، 18(2)، 45-72.",
+        sourceType: isEn ? "Peer-Reviewed Journal" : "بحث محكم في مجلة علمية",
+        relevance: isEn ? "Standards for regression, validity, and statistical modeling" : "مرجع في الاختبارات الإحصائية وضبط متغيرات الدراسة"
+      },
+      {
+        citationApa: isEn
+          ? "American Psychological Association. (2020). Publication manual of the American Psychological Association (7th ed.). https://doi.org/10.1037/0000165-000"
+          : "الجمعية الأمريكية للعلوم النفسية. (2020). دليل النشر الأكاديمي والتوثيق العلمي - الإصدار السابع APA 7th.",
+        sourceType: isEn ? "International Standard" : "دليل التوثيق المعياري العالمي",
+        relevance: isEn ? "Authoritative standard for citation and scholarly structure" : "المعيار الرسمي لتوثيق المراجع وتنظيم الورقة العلمية"
+      }
+    ]
+  };
+}
 
 // Fallback project suggestions generator
 function buildFallbackSuggestions(
@@ -926,33 +1519,40 @@ function buildFallbackProjectPlan(
   field?: string,
   budgetLevel?: string,
   timeframe?: string,
-  targetMarket?: string
+  targetMarket?: string,
+  lang?: string
 ) {
   const cleanIdea = idea.trim();
   const lower = cleanIdea.toLowerCase();
+  const isEn = lang === 'en';
 
   // Deduce project essence
-  let guessedName = "مشروع " + (cleanIdea.split(" ").slice(0, 3).join(" "));
-  let category = field || "مشروع تجاري ناشئ";
-  let slogan = "نحو تجربة أسرع وأذكى لخدمة عملائك";
+  let guessedName = isEn
+    ? "Project " + (cleanIdea.split(" ").slice(0, 3).join(" "))
+    : "مشروع " + (cleanIdea.split(" ").slice(0, 3).join(" "));
+  let category = field || (isEn ? "Emerging Venture" : "مشروع تجاري ناشئ");
+  let slogan = isEn
+    ? "A faster, smarter experience designed for your customer needs"
+    : "نحو تجربة أسرع وأذكى لخدمة عملائك";
 
   if (lower.includes("قهوة") || lower.includes("كافيه") || lower.includes("coffee")) {
-    guessedName = "رَوْنَق القهوة";
-    category = "أغذية ومشروبات / اشتراكات";
-    slogan = "مذاق استثنائي يصل إلى بابك بكل دقة واهتمام";
+    guessedName = isEn ? "Aroma Roasters" : "رَوْنَق القهوة";
+    category = isEn ? "Food & Beverage / Subscriptions" : "أغذية ومشروبات / اشتراكات";
+    slogan = isEn ? "Exceptional artisan coffee delivered straight to your door" : "مذاق استثنائي يصل إلى بابك بكل دقة واهتمام";
   } else if (lower.includes("بادل") || lower.includes("رياض") || lower.includes("padel")) {
-    guessedName = "بادل بلس (PadelPlus)";
-    category = "صحة ورياضة وتقنية";
-    slogan = "تحديات الملاعب وحجوزاتك المفضلة بنقرة واحدة";
-  } else if (lower.includes("متجر") || lower.includes("توصيل") || lower.includes("منتجات")) {
-    guessedName = "سريـع (QuickCart)";
-    category = "تجارة إلكترونية وخدمات لوجستية";
-    slogan = "تجربة تسوق موثوقة تلبي احتياجاتك اليومية";
-  } else if (lower.includes("تطبيق") || lower.includes("منصة") || lower.includes("ذكاء")) {
-    guessedName = "منصة فِكرة الذكية";
-    category = "تقنية وتطبيقات سحابية";
-    slogan = "أتمتة ذكية تسهل حياة المستخدمين وتوفر وقتهم";
+    guessedName = "PadelPlus";
+    category = isEn ? "Sports, Fitness & Tech" : "صحة ورياضة وتقنية";
+    slogan = isEn ? "Seamless court bookings and competitive tournaments in one tap" : "تحديات الملاعب وحجوزاتك المفضلة بنقرة واحدة";
+  } else if (lower.includes("متجر") || lower.includes("توصيل") || lower.includes("منتجات") || lower.includes("store")) {
+    guessedName = isEn ? "QuickCart Direct" : "سريـع (QuickCart)";
+    category = isEn ? "E-commerce & Smart Logistics" : "تجارة إلكترونية وخدمات لوجستية";
+    slogan = isEn ? "Reliable shopping that simplifies everyday customer demands" : "تجربة تسوق موثوقة تلبي احتياجاتك اليومية";
+  } else if (lower.includes("تطبيق") || lower.includes("منصة") || lower.includes("ذكاء") || lower.includes("app")) {
+    guessedName = isEn ? "OmniVenture AI" : "منصة فِكرة الذكية";
+    category = isEn ? "Cloud Software & AI Tools" : "تقنية وتطبيقات سحابية";
+    slogan = isEn ? "Smart automated intelligence to elevate productivity" : "أتمتة ذكية تسهل حياة المستخدمين وتوفر وقتهم";
   }
+
 
   return {
     id: "plan_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),

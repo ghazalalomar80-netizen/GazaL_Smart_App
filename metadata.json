@@ -1,7 +1,8 @@
 {
   "name": "GSE AI",
-  "description": "منصة ذكاء اصطناعي باللغتين العربية والإنجليزية لتحويل الأفكار إلى خطط عمل واقعية، خطوات تنفيذ، استراتيجيات تسويق واقتراح أفضل المشاريع حسب مهاراتك وميزانيتك",
-  "requestFramePermissions": [],
+  "description": "منصة ذكاء اصطناعي للدراسات والأبحاث العلمية وخطط المشاريع الشاملة، مع روبوت بحثي متعدد اللغات وتصدير PDF احترافي",
+  "requestFramePermissions": ["microphone", "camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
+
 

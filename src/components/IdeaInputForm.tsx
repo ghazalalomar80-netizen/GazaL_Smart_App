@@ -11,6 +11,9 @@ import {
   Clock,
   Users,
   Compass,
+  Flame,
+  Search,
+  GraduationCap,
 } from 'lucide-react';
 import { GeneratePlanInput } from '../types';
 
@@ -18,6 +21,8 @@ interface IdeaInputFormProps {
   onSubmit: (input: GeneratePlanInput) => void;
   isLoading: boolean;
   onSwitchToSkillMatcher?: () => void;
+  onSwitchToTrendingSearch?: () => void;
+  onSwitchToAcademicResearch?: () => void;
 }
 
 const SAMPLE_IDEAS = [
@@ -62,6 +67,8 @@ export const IdeaInputForm: React.FC<IdeaInputFormProps> = ({
   onSubmit,
   isLoading,
   onSwitchToSkillMatcher,
+  onSwitchToTrendingSearch,
+  onSwitchToAcademicResearch,
 }) => {
   const [idea, setIdea] = useState('');
   const [field, setField] = useState('');
@@ -145,6 +152,50 @@ export const IdeaInputForm: React.FC<IdeaInputFormProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto">
+      {onSwitchToAcademicResearch && (
+        <div className="mb-4 p-3 sm:p-3.5 bg-gradient-to-r from-blue-900/10 via-indigo-900/10 to-blue-900/10 border border-blue-300/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5 shadow-xs">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-800 text-center sm:text-right">
+            <span className="p-1.5 rounded-xl bg-blue-600 text-white shrink-0 shadow-2xs">
+              <GraduationCap className="w-4 h-4" />
+            </span>
+            <div>
+              <strong className="font-extrabold text-blue-950">قسم الدراسات والأبحاث العلمية: </strong>
+              <span className="text-slate-600">صياغة وتوليد أبحاث أكاديمية، فرضيات، متغيرات إجرائية، ومراجع APA 7th لأطروحات التخرج والماجستير والدكتوراه.</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onSwitchToAcademicResearch}
+            className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shrink-0 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>ابدأ بحثاً أو دراسة علمية 🎓</span>
+          </button>
+        </div>
+      )}
+
+      {onSwitchToTrendingSearch && (
+        <div className="mb-4 p-3 sm:p-3.5 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-amber-500/10 border border-amber-300/70 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5 shadow-xs">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-800 text-center sm:text-right">
+            <span className="p-1.5 rounded-xl bg-amber-500 text-white shrink-0 shadow-2xs">
+              <Flame className="w-4 h-4" />
+            </span>
+            <div>
+              <strong className="font-extrabold text-amber-950">تصفح كل ما يبحث عنه المستخدمون: </strong>
+              <span className="text-slate-600">أكثر المشاريع ربحاً، المباحث الدراسية، وحلول المشكلات الأكثر طلباً في مركز بحث موحد.</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onSwitchToTrendingSearch}
+            className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shrink-0 shadow-xs flex items-center justify-center gap-1.5"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span>مركز البحث والاكتشاف 🔥</span>
+          </button>
+        </div>
+      )}
+
       {onSwitchToSkillMatcher && (
         <div className="mb-6 p-3.5 sm:p-4 bg-gradient-to-r from-emerald-50 via-teal-50/60 to-emerald-50 border border-emerald-200/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-800 text-center sm:text-right">

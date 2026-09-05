@@ -11,9 +11,21 @@ import { UnitEconomicsCalculator } from './components/UnitEconomicsCalculator';
 import { LeanCanvasView } from './components/LeanCanvasView';
 import { PitchDeckViewer } from './components/PitchDeckViewer';
 import { AiAdvisorChat } from './components/AiAdvisorChat';
+import { UniversalRobotModal } from './components/UniversalRobotModal';
 import { SavedPlansModal } from './components/SavedPlansModal';
-import { ProjectPlan, GeneratePlanInput } from './types';
-import { getSavedPlans, savePlanToStorage, deletePlanFromStorage } from './utils/storage';
+import { UniversalSearchHub } from './components/UniversalSearchHub';
+import { AcademicResearchForm } from './components/AcademicResearchForm';
+import { AcademicResearchViewer } from './components/AcademicResearchViewer';
+import { ProjectPlan, GeneratePlanInput, AcademicResearchPlan, GenerateResearchInput } from './types';
+import {
+  getSavedPlans,
+  savePlanToStorage,
+  deletePlanFromStorage,
+  getSavedResearchPlans,
+  saveResearchPlanToStorage,
+  deleteResearchPlanFromStorage
+} from './utils/storage';
+import { useLanguage } from './context/LanguageContext';
 import {
   Layers,
   Megaphone,
@@ -30,22 +42,70 @@ import {
   Calculator,
   FileSpreadsheet,
   Presentation,
+  Globe,
+  Printer,
+  Search,
+  Flame,
+  GraduationCap
 } from 'lucide-react';
 
 export default function App() {
+  const { language, t, isRTL } = useLanguage();
+  const isEn = language === 'en';
+
   const [currentPlan, setCurrentPlan] = useState<ProjectPlan | null>(null);
   const [savedPlans, setSavedPlans] = useState<ProjectPlan[]>([]);
+  const [currentResearch, setCurrentResearch] = useState<AcademicResearchPlan | null>(null);
+  const [savedResearchPlans, setSavedResearchPlans] = useState<AcademicResearchPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResearchLoading, setIsResearchLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
+  const [isRobotOpen, setIsRobotOpen] = useState(false);
+  const [robotInitialQuery, setRobotInitialQuery] = useState<string | undefined>(undefined);
+  const [robotInitialCategory, setRobotInitialCategory] = useState<string | undefined>(undefined);
+  const [isTranslatingPlan, setIsTranslatingPlan] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'canvas' | 'pitch' | 'strategy' | 'calculator' | 'execution' | 'marketing' | 'financial' | 'advisor'>('all');
-  const [mainMode, setMainMode] = useState<'convert_idea' | 'skill_budget'>('convert_idea');
+  const [mainMode, setMainMode] = useState<'convert_idea' | 'skill_budget' | 'trending_search' | 'academic_research'>('academic_research');
 
-  // Load saved plans on initial render
+  // Load saved plans and research studies on initial render
   useEffect(() => {
     const plans = getSavedPlans();
     setSavedPlans(plans);
+    const researchList = getSavedResearchPlans();
+    setSavedResearchPlans(researchList);
   }, []);
+
+  const handleGenerateResearch = async (input: GenerateResearchInput) => {
+    setIsResearchLoading(true);
+    setErrorMessage(null);
+    try {
+      const response = await fetch('/api/generate-research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...input, lang: language }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || (isEn ? 'Failed to generate academic research' : 'فشل في توليد الدراسة والأطروحة العلمية'));
+      }
+
+      const plan: AcademicResearchPlan = await response.json();
+      setCurrentResearch(plan);
+      setCurrentPlan(null);
+      const updated = saveResearchPlanToStorage(plan);
+      setSavedResearchPlans(updated);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
+      console.error('Error in handleGenerateResearch:', err);
+      setErrorMessage(
+        err.message || (isEn ? 'An unexpected error occurred while generating academic study.' : 'حدث خطأ غير متوقع أثناء توليد الدراسة والبحث العلمي.')
+      );
+    } finally {
+      setIsResearchLoading(false);
+    }
+  };
 
   const handleGeneratePlan = async (input: GeneratePlanInput) => {
     setIsLoading(true);
@@ -54,12 +114,12 @@ export default function App() {
       const response = await fetch('/api/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
+        body: JSON.stringify({ ...input, lang: language }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'فشل في توليد الخطة');
+        throw new Error(errorData.error || errorData.details || (isEn ? 'Failed to generate plan' : 'فشل في توليد الخطة'));
       }
 
       const plan: ProjectPlan = await response.json();
@@ -71,10 +131,36 @@ export default function App() {
     } catch (err: any) {
       console.error('Error in handleGeneratePlan:', err);
       setErrorMessage(
-        err.message || 'حدث خطأ غير متوقع أثناء توليد الخطة بواسطة الذكاء الاصطناعي.'
+        err.message || (isEn ? 'An unexpected error occurred while generating the plan.' : 'حدث خطأ غير متوقع أثناء توليد الخطة بواسطة الذكاء الاصطناعي.')
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTranslatePlan = async () => {
+    if (!currentPlan || isTranslatingPlan) return;
+    setIsTranslatingPlan(true);
+    try {
+      const targetLang = currentPlan.lang === 'en' ? 'ar' : 'en';
+      const response = await fetch('/api/translate-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPlan: currentPlan, targetLang }),
+      });
+
+      if (!response.ok) {
+        throw new Error(isEn ? 'Failed to translate plan' : 'فشل في ترجمة الخطة');
+      }
+
+      const translatedPlan = await response.json();
+      setCurrentPlan(translatedPlan);
+      const updated = savePlanToStorage(translatedPlan);
+      setSavedPlans(updated);
+    } catch (err: any) {
+      console.error('Error translating plan:', err);
+    } finally {
+      setIsTranslatingPlan(false);
     }
   };
 
@@ -86,8 +172,8 @@ export default function App() {
     handleGeneratePlan({
       idea: suggestionText,
       field: category,
-      budgetLevel: budgetLevel || 'منخفضة جداً / صفرية',
-      timeframe: 'شهر إلى 3 أشهر',
+      budgetLevel: budgetLevel || (isEn ? 'Very Low / Bootstrapped' : 'منخفضة جداً / صفرية'),
+      timeframe: isEn ? '1 to 3 months' : 'شهر إلى 3 أشهر',
     });
   };
 
@@ -127,36 +213,95 @@ export default function App() {
     }
   };
 
+  const handleDeleteResearchPlan = (researchId: string) => {
+    const updated = deleteResearchPlanFromStorage(researchId);
+    setSavedResearchPlans(updated);
+    if (currentResearch?.id === researchId) {
+      setCurrentResearch(null);
+    }
+  };
+
   const handleNewPlan = () => {
     setCurrentPlan(null);
+    setCurrentResearch(null);
     setErrorMessage(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleAskRobotTopic = (query: string, category: string) => {
+    setRobotInitialQuery(query);
+    setRobotInitialCategory(category);
+    setIsRobotOpen(true);
+  };
+
+  const handleGeneratePlanFromTopic = (ideaPrompt: string, category?: string) => {
+    setCurrentPlan(null);
+    setCurrentResearch(null);
+    setMainMode('convert_idea');
+    handleGeneratePlan({
+      idea: ideaPrompt,
+      field: category,
+    });
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+    <div className={`min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans ${isRTL ? 'text-right' : 'text-left'}`}>
       {/* Top Navbar */}
       <Header
         currentPlan={currentPlan}
-        savedCount={savedPlans.length}
+        savedCount={savedPlans.length + savedResearchPlans.length}
         onOpenSaved={() => setIsSavedModalOpen(true)}
         onNewPlan={handleNewPlan}
+        onOpenAcademicResearch={() => {
+          setCurrentPlan(null);
+          setCurrentResearch(null);
+          setMainMode('academic_research');
+        }}
+        onOpenTrendingSearch={() => {
+          setCurrentPlan(null);
+          setCurrentResearch(null);
+          setMainMode('trending_search');
+        }}
         onOpenSkillMatcher={() => {
           setCurrentPlan(null);
+          setCurrentResearch(null);
           setMainMode('skill_budget');
         }}
+        onOpenRobot={() => setIsRobotOpen(true)}
+        onTranslatePlan={handleTranslatePlan}
+        isTranslatingPlan={isTranslatingPlan}
         activeMode={mainMode}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+        {/* Dedicated Clean Print & PDF Cover Header for Business Plans */}
+        {currentPlan && (
+          <div className="hidden print:block mb-8 pb-6 border-b-2 border-indigo-600">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-xs font-bold text-indigo-600 tracking-wider uppercase">
+                  GSE AI — {isEn ? 'Strategic Venture Blueprint & Execution Plan' : 'وثيقة الخطة الاستراتيجية والتنفيذية'}
+                </span>
+                <h1 className="text-3xl font-extrabold text-slate-900 mt-1">{currentPlan.projectName}</h1>
+                <p className="text-base text-slate-600 mt-1 italic">{currentPlan.slogan}</p>
+              </div>
+              <div className="text-end text-xs text-slate-500">
+                <div><strong>{isEn ? 'Category:' : 'التصنيف:'}</strong> {currentPlan.category}</div>
+                <div><strong>{isEn ? 'Date:' : 'التاريخ:'}</strong> {new Date(currentPlan.createdAt).toLocaleDateString()}</div>
+                <div><strong>{isEn ? 'Platform:' : 'المنصة:'}</strong> GSE AI</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error Notification */}
         {errorMessage && (
           <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start justify-between gap-3 shadow-xs">
             <div className="flex items-start gap-2.5">
               <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <div>
-                <strong className="font-bold">تنبيه: </strong>
+                <strong className="font-bold">{isEn ? 'Notice: ' : 'تنبيه: '}</strong>
                 <span>{errorMessage}</span>
               </div>
             </div>
@@ -164,59 +309,112 @@ export default function App() {
               onClick={() => setErrorMessage(null)}
               className="text-xs font-semibold text-rose-600 hover:text-rose-800"
             >
-              إغلاق
+              {isEn ? 'Close' : 'إغلاق'}
             </button>
           </div>
         )}
 
-        {/* Display either input forms or active plan */}
-        {!currentPlan ? (
+        {/* Display either academic research viewer, business plan, or generation hubs */}
+        {currentResearch ? (
+          <AcademicResearchViewer
+            researchPlan={currentResearch}
+            onReset={() => {
+              setCurrentResearch(null);
+              setMainMode('academic_research');
+            }}
+            onOpenRobotModal={handleAskRobotTopic}
+          />
+        ) : !currentPlan ? (
           <div className="space-y-6">
             {/* Mode Switcher Segmented Control */}
             <div className="flex items-center justify-center">
-              <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner border border-slate-300/70 max-w-md w-full">
+              <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner border border-slate-300/70 max-w-2xl w-full overflow-x-auto">
+                <button
+                  type="button"
+                  id="tab-academic-research"
+                  onClick={() => setMainMode('academic_research')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    mainMode === 'academic_research'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>{isEn ? 'Scientific Studies & Research' : 'أبحاث ودراسات علمية'}</span>
+                  <span className="hidden md:inline-block text-[10px] bg-blue-500/20 text-blue-100 font-extrabold px-1.5 py-0.5 rounded-full">
+                    🎓
+                  </span>
+                </button>
+
                 <button
                   type="button"
                   id="tab-convert-idea"
                   onClick={() => setMainMode('convert_idea')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
                     mainMode === 'convert_idea'
                       ? 'bg-white text-indigo-700 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Lightbulb className="w-4 h-4" />
-                  <span>تحويل فكرة</span>
+                  <Lightbulb className="w-4 h-4 text-indigo-600" />
+                  <span>{isEn ? 'Transform Idea' : 'تحويل فكرة'}</span>
                 </button>
 
                 <button
                   type="button"
                   id="tab-skill-budget"
                   onClick={() => setMainMode('skill_budget')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all relative ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
                     mainMode === 'skill_budget'
                       ? 'bg-white text-emerald-700 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <Compass className="w-4 h-4 text-emerald-600" />
-                  <span>اقتراح حسب المهارات</span>
-                  <span className="hidden sm:inline-block text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full">
-                    جديد ✨
+                  <span>{isEn ? 'Match by Skills' : 'اقتراح حسب المهارات'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="tab-trending-search"
+                  onClick={() => setMainMode('trending_search')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    mainMode === 'trending_search'
+                      ? 'bg-white text-amber-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Flame className="w-4 h-4 text-amber-500" />
+                  <span>{isEn ? 'All Searches' : 'كل ما تبحث عنه'}</span>
+                  <span className="hidden sm:inline-block text-[10px] bg-amber-100 text-amber-900 font-extrabold px-1.5 py-0.5 rounded-full">
+                    🔥
                   </span>
                 </button>
               </div>
             </div>
 
-            {mainMode === 'convert_idea' ? (
+            {mainMode === 'academic_research' ? (
+              <AcademicResearchForm
+                onSubmit={handleGenerateResearch}
+                isLoading={isResearchLoading}
+                onOpenRobotModal={handleAskRobotTopic}
+              />
+            ) : mainMode === 'convert_idea' ? (
               <IdeaInputForm
                 onSubmit={handleGeneratePlan}
                 isLoading={isLoading}
                 onSwitchToSkillMatcher={() => setMainMode('skill_budget')}
+                onSwitchToTrendingSearch={() => setMainMode('trending_search')}
+                onSwitchToAcademicResearch={() => setMainMode('academic_research')}
               />
-            ) : (
+            ) : mainMode === 'skill_budget' ? (
               <SkillBudgetMatcher
                 onSelectSuggestionForFullPlan={handleSelectSuggestionForFullPlan}
+              />
+            ) : (
+              <UniversalSearchHub
+                onGeneratePlanFromTopic={handleGeneratePlanFromTopic}
+                onAskRobotTopic={handleAskRobotTopic}
               />
             )}
           </div>
@@ -234,7 +432,7 @@ export default function App() {
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4" />
-                <span>عرض كامل الخطة</span>
+                <span>{isEn ? 'All Sections' : 'عرض كامل الخطة'}</span>
               </button>
 
               <button
@@ -247,7 +445,7 @@ export default function App() {
                 }`}
               >
                 <FileSpreadsheet className="w-4 h-4" />
-                <span>مخطط نموذج العمل (Lean Canvas)</span>
+                <span>Lean Canvas</span>
               </button>
 
               <button
@@ -260,7 +458,7 @@ export default function App() {
                 }`}
               >
                 <Presentation className="w-4 h-4" />
-                <span>العرض التقديمي (Pitch Deck)</span>
+                <span>Pitch Deck</span>
               </button>
 
               <button
@@ -273,7 +471,7 @@ export default function App() {
                 }`}
               >
                 <Target className="w-4 h-4" />
-                <span>التحليل الاستراتيجي و SWOT</span>
+                <span>{isEn ? 'Strategic SWOT' : 'التحليل الاستراتيجي و SWOT'}</span>
               </button>
 
               <button
@@ -286,8 +484,10 @@ export default function App() {
                 }`}
               >
                 <Calculator className="w-4 h-4" />
-                <span>حاسبة الجدوى والوحدة</span>
-                <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">تفاعلية</span>
+                <span>{isEn ? 'Unit Economics' : 'حاسبة الجدوى والوحدة'}</span>
+                <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">
+                  {isEn ? 'Live' : 'تفاعلية'}
+                </span>
               </button>
 
               <button
@@ -300,7 +500,7 @@ export default function App() {
                 }`}
               >
                 <Layers className="w-4 h-4" />
-                <span>خطوات التنفيذ</span>
+                <span>{isEn ? 'Roadmap' : 'خطوات التنفيذ'}</span>
               </button>
 
               <button
@@ -313,7 +513,7 @@ export default function App() {
                 }`}
               >
                 <Megaphone className="w-4 h-4" />
-                <span>أفكار التسويق</span>
+                <span>{isEn ? 'Marketing' : 'أفكار التسويق'}</span>
               </button>
 
               <button
@@ -326,7 +526,7 @@ export default function App() {
                 }`}
               >
                 <Coins className="w-4 h-4" />
-                <span>طريقة الربح والمالية</span>
+                <span>{isEn ? 'Monetization' : 'طريقة الربح والمالية'}</span>
               </button>
 
               <button
@@ -339,7 +539,7 @@ export default function App() {
                 }`}
               >
                 <Bot className="w-4 h-4" />
-                <span>المستشار الذكي</span>
+                <span>{isEn ? 'AI Advisor' : 'المستشار الذكي'}</span>
               </button>
             </div>
 
@@ -403,7 +603,44 @@ export default function App() {
         )}
       </main>
 
-      {/* Saved Plans Modal Drawer */}
+      {/* Floating Omnilingual AI Robot Launcher Button */}
+      <div className="fixed bottom-6 end-6 z-40 no-print">
+        <button
+          id="floating-robot-btn"
+          onClick={() => setIsRobotOpen(true)}
+          className="group flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-indigo-500/30 border border-white/20 transition-all transform hover:scale-105 active:scale-95"
+          title={isEn ? 'Open Universal Multilingual AI Robot' : 'فتح الروبوت الذكي الشامل (يتحدث كل اللغات)'}
+        >
+          <div className="relative">
+            <Bot className="w-6 h-6 animate-pulse" />
+            <span className="absolute -top-1 -end-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border border-white" />
+          </div>
+          <div className="text-start hidden sm:block">
+            <div className="text-xs font-extrabold flex items-center gap-1">
+              <span>{isEn ? 'Universal AI Robot' : 'الروبوت الذكي الشامل'}</span>
+              <Sparkles className="w-3 h-3 text-cyan-300" />
+            </div>
+            <div className="text-[10px] text-indigo-100 font-normal">
+              {isEn ? 'Speaks all languages • All topics' : 'يتحدث جميع اللغات • دراسة، استنتاج وحلول'}
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* Universal Omnilingual Robot Modal */}
+      <UniversalRobotModal
+        isOpen={isRobotOpen}
+        onClose={() => {
+          setIsRobotOpen(false);
+          setRobotInitialQuery(undefined);
+          setRobotInitialCategory(undefined);
+        }}
+        currentPlan={currentPlan}
+        initialQuery={robotInitialQuery}
+        initialCategory={robotInitialCategory}
+      />
+
+      {/* Saved Plans & Academic Studies Modal Drawer */}
       <SavedPlansModal
         isOpen={isSavedModalOpen}
         onClose={() => setIsSavedModalOpen(false)}
@@ -411,6 +648,15 @@ export default function App() {
         onSelectPlan={handleSelectPlan}
         onDeletePlan={handleDeletePlan}
         currentPlanId={currentPlan?.id}
+        researchPlans={savedResearchPlans}
+        onSelectResearchPlan={(r) => {
+          setCurrentPlan(null);
+          setCurrentResearch(r);
+          setIsSavedModalOpen(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onDeleteResearchPlan={handleDeleteResearchPlan}
+        currentResearchId={currentResearch?.id}
       />
 
       {/* Footer */}
@@ -419,13 +665,20 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-slate-800">GSE AI</span>
             <span>—</span>
-            <span>نظام الذكاء الاصطناعي لتحويل الأفكار إلى خطط عمل وخطوات تنفيذ وأفكار تسويق</span>
+            <span>
+              {isEn
+                ? 'AI Venture OS: Turning ideas into executable startups, studies, logic deductions & marketing'
+                : 'نظام الذكاء الاصطناعي لتحويل الأفكار إلى خطط عمل وخطوات تنفيذ وأفكار تسويق ودراسات واستنتاج'}
+            </span>
           </div>
           <div>
-            <span>مدعوم بنماذج Gemini 3.8 Flash المتطورة</span>
+            <span>
+              {isEn ? 'Powered by Gemini 3.8 Flash' : 'مدعوم بنماذج Gemini 3.8 Flash المتطورة'}
+            </span>
           </div>
         </div>
       </footer>
     </div>
   );
 }
+

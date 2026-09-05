@@ -184,3 +184,93 @@ export interface SkillBudgetInput {
   interests?: string;
   lang?: Language;
 }
+
+// ==========================================
+// Academic Studies & Scientific Research Types
+// ==========================================
+
+export interface ResearchHypothesis {
+  type: 'فرضية بديلة (H1)' | 'فرضية صفرية (H0)' | 'تساؤل فرعي' | string;
+  statement: string;
+  rationale: string;
+}
+
+export interface ResearchVariable {
+  name: string;
+  type: 'متغير مستقل' | 'متغير تابع' | 'متغير وسيط/ضابط' | 'متغير تصنيفي' | string;
+  operationalDefinition: string;
+  measurementTool: string;
+}
+
+export interface ResearchMilestone {
+  phaseNumber: number;
+  phaseName: string;
+  duration: string;
+  keyDeliverable: string;
+  tasks: string[];
+}
+
+export interface LiteratureTheme {
+  themeTitle: string;
+  synthesis: string;
+  keyScholarsOrTheories: string;
+}
+
+export interface ReferenceItem {
+  citationApa: string;
+  sourceType: 'بحث محكم' | 'كتاب أكاديمي' | 'تقرير دولي / مؤتمر' | 'أطروحة جامعية' | string;
+  relevance: string;
+}
+
+export interface AcademicResearchPlan {
+  id: string;
+  title: string; // عنوان البحث الأكاديمي المقترح
+  englishTitle?: string; // العنوان باللغة الإنجليزية
+  academicField: string; // التخصص الأكاديمي الدقيق
+  studyType: string; // نوع الدراسة (تطبيقية، وصفية، تجريبية، دراسة حالة، مراجعة منهجية)
+  academicDegreeLevel: string; // المستوى الأكاديمي (تخرج، ماجستير، دكتوراه، ورقة نشر محكم)
+  abstractAr: string; // الملخص باللغة العربية
+  abstractEn: string; // Abstract in English
+  keywords: string[]; // الكلمات المفتاحية
+  problemStatement: string; // صياغة المشكلة البحثية بدقة
+  mainResearchQuestion: string; // سؤال البحث الرئيسي
+  subQuestions: string[]; // الأسئلة الفرعية
+  objectives: string[]; // أهداف البحث المحددة
+  significance: {
+    theoretical: string; // الأهمية النظرية والعلمية
+    practical: string; // الأهمية التطبيقية والمجتمعية
+  };
+  researchGap: string; // الفجوة البحثية التي تسدها هذه الدراسة
+  hypotheses: ResearchHypothesis[]; // الفرضيات العلمية
+  variables: ResearchVariable[]; // المتغيرات وتعريفاتها الإجرائية
+  methodology: {
+    approach: string; // المنهج المتبع (كمي، نوعي، مختلط)
+    populationAndSample: string; // مجتمع البحث وعينة الدراسة وطريقة اختيارها
+    dataCollectionTools: string[]; // أدوات جمع البيانات (استبانة، مقياس، مقابلات، تحليل محتوى)
+    validityAndReliability: string; // إجراءات الصدق والثبات
+    ethicalConsiderations: string[]; // المعايير والاعتبارات الأخلاقية للبحث
+  };
+  literatureReview: {
+    theoreticalFramework: string; // الإطار النظري المفسر
+    themes: LiteratureTheme[]; // محاور الأدبيات والدراسات السابقة
+  };
+  dataAnalysisPlan: {
+    statisticalTechniques: string[]; // الأساليب والاختبارات الإحصائية (t-test, ANOVA, Regression)
+    softwareTools: string[]; // البرمجيات المقترحة (SPSS, R, Python, NVivo, SmartPLS)
+    expectedFindings: string; // النتائج والتوقعات المبدئية
+  };
+  roadmap: ResearchMilestone[]; // الخطة الزمنية ومراحل إنجاز البحث
+  suggestedReferences: ReferenceItem[]; // قائمة المراجع المقترحة وفق توثيق APA 7th
+  createdAt: string;
+  originalTopic: string;
+  lang?: Language;
+}
+
+export interface GenerateResearchInput {
+  topic: string;
+  academicField?: string;
+  degreeLevel?: string;
+  studyType?: string;
+  methodologyApproach?: string;
+  lang?: Language;
+}

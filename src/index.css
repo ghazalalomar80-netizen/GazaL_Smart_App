@@ -6,17 +6,76 @@
   }
 }
 
+/* Professional PDF & Print Export Styles */
 @media print {
-  body {
-    background-color: white !important;
-    color: black !important;
+  @page {
+    margin: 1.2cm;
+    size: A4 portrait;
   }
-  .no-print {
+
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide interactive web-only chrome */
+  .no-print,
+  header,
+  footer,
+  button:not(.print-include),
+  input,
+  select,
+  textarea,
+  .floating-robot-btn {
     display: none !important;
   }
+
+  /* Layout and Container overrides for clean PDF pages */
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+
   .print-break-inside-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Force light backgrounds & crisp borders in PDF */
+  .bg-white,
+  .bg-slate-50,
+  .bg-slate-100 {
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  /* Clean contrast for printed text */
+  h1, h2, h3, h4 {
+    color: #0f172a !important;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* PDF Header Banner watermark */
+  .print-pdf-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #4f46e5;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
   }
 }
+
 
