@@ -274,3 +274,11 @@ export interface GenerateResearchInput {
   methodologyApproach?: string;
   lang?: Language;
 }
+
+export interface RobotMemoryItem {
+  id: string;
+  category: 'profile' | 'academic' | 'project' | 'preference' | 'general';
+  content: string;
+  createdAt: string;
+  isPinned?: boolean;
+}

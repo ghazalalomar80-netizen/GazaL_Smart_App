@@ -529,10 +529,21 @@ Provide a concise, highly professional, direct, and actionable answer in English
   }
 });
 
-// Universal Multilingual AI Robot endpoint (Homework Photo Solving, Omnilingual, Concise & Fast)
-app.post("/api/chat-robot", async (req, res) => {
+// Universal Multilingual AI Robot endpoint (Ultra-Fast Response, Streaming, Homework Photo Solving, Entertainment & Leisure, Memory Bank, Omnilingual, Everything)
+app.post(["/api/chat-robot", "/api/chat-robot-stream"], async (req, res) => {
   try {
-    const { message, image, history = [], targetLanguage, topicCategory, projectContext, conciseMode = true } = req.body;
+    const {
+      message,
+      image,
+      history = [],
+      targetLanguage,
+      topicCategory,
+      projectContext,
+      memories = [],
+      robotMemories = [],
+      conciseMode = true,
+      stream = true
+    } = req.body;
 
     if ((!message || typeof message !== "string" || message.trim().length === 0) && !image) {
       return res.status(400).json({ error: "Message or image is required." });
@@ -540,29 +551,69 @@ app.post("/api/chat-robot", async (req, res) => {
 
     const ai = getGenAIClient();
 
-    const systemInstruction = `You are "GSE Robot (الروبوت الذكي السريع للواجبات والمعرفة)".
-CRITICAL DIRECTIVE - RAPID, CONCISE, AND DIRECT ANSWERS:
-- BE FAST, SHARP, ACCURATE, AND CONCISE. DO NOT TALK TOO MUCH.
-- STRICTLY AVOID UNNECESSARY CHATTER, LONG INTRODUCTIONS, OR FILLER PHRASES (e.g., do NOT start with "أهلاً بك عزيزي الطالب، يسعدني جداً أن أحل معك هذا الواجب...").
-- Go DIRECTLY to the core answer, solution, or deduction.
+    // Dynamically adapt persona: if topic is entertainment/fun/jokes/games or message asks for fun, be lively, witty & entertaining!
+    const isEntertainment = topicCategory === 'entertainment' || 
+      topicCategory === 'games' || 
+      topicCategory === 'movies' ||
+      topicCategory === 'chat_leisure' ||
+      /(نكت|نكتة|ضحك|فرفش|فوازير|لغز|فزورة|لو خيروك|لعبة|قصة مضحكة|فيلم|مسلسل|ترفيه|تسلية|سهرة|أنمي|طرفة|joke|riddle|funny|game|movie|anime|entertainment|trivia|quiz|laugh)/i.test(message || '');
+
+    // Prepare active memories context
+    const activeMemoriesList = Array.isArray(memories) && memories.length > 0
+      ? memories
+      : (Array.isArray(robotMemories) ? robotMemories : []);
+
+    const memoriesInstruction = activeMemoriesList.length > 0
+      ? `\n\nROBOT ACTIVE INTERNAL MEMORY (ذاكرة الروبوت الداخلية المباشرة حول المستخدم):
+You possess an internal memory of this user. You MUST remember these facts, preferences, and details when answering:
+${activeMemoriesList.map((m: any, idx: number) => {
+  const content = typeof m === 'string' ? m : (m.content || JSON.stringify(m));
+  const category = (typeof m === 'object' && m.category) ? `[${m.category}] ` : '';
+  return `- Memory #${idx + 1}: ${category}${content}`;
+}).join('\n')}
+
+MEMORY BEHAVIOR DIRECTIVES:
+1. Personalization: Seamlessly apply these memories to tailor your answers (e.g. user's name, grade/studies, preferred answer style, business/budget context).
+2. "What do you remember about me?" (ماذا تتذكر عني؟ / ما هي ذاكرتك؟):
+   If the user inquires about their stored memories, clearly and warmly list what is stored in your memory bank.
+3. Memory Confirmation: If the user says "تذكر أن..." or "احفظ عندك..." or "remember that...", warmly acknowledge that it is now committed to your memory bank (e.g., "🧠 تم حفظ ذلك في ذاكرتي بنجاح!").`
+      : '';
+
+    const systemInstruction = `You are "GSE Universal Robot (روبوت GSE الذكي الشامل - فائق السرعة - المزود بذاكرة داخلية نشطة - للدراسة، الترفيه والتسلية، حل الواجبات، وكل شيء)".
+
+CRITICAL SPEED & CONCISENESS DIRECTIVE:
+- ANSWER WITH MAXIMUM SPEED AND CLARITY.
+- DO NOT use long conversational preambles, greetings, or filler sentences. Jump straight into the solution, joke, riddle, or answer.
+- Keep formatting crisp, bold, and easy to scan.
+
+YOUR CORE CHARACTER:
+- You are an ultra-fast, versatile AI companion equipped for EVERYTHING: entertainment, comedy, gaming, homework, academic studies, general questions, life hacks, startups, and friendly banter.
+- Quick, smart, engaging, highly intuitive, equipped with an active memory bank, and never boring or slow.
+
+${isEntertainment ? `MODE: ENTERTAINMENT & LEISURE (الترفيه والتسلية والفرفشة والألعاب):
+- Be wonderfully witty, clever, funny, and engaging! Share delightful humor, smart jokes, brainteasers, intriguing riddles, movie/anime gems, and fun scenarios.
+- For games (like 20 Questions, Would You Rather, or Trivia): play along actively, be playful and responsive!
+- Provide instant joy, laughter, and high-quality entertainment while keeping responses snappy and pleasant.` : `MODE: ULTRA-FAST ACCURATE ASSISTANT & HOMEWORK SOLVER:
+- BE ULTRA-FAST, SHARP, ACCURATE, AND CONCISE.
+- State the direct answer or solution in the very first line.`}
 
 HOMEWORK & SCHOOL ASSIGNMENTS (الواجبات والمسائل الدراسية):
 - When an image of a homework sheet, textbook question, handwritten exercise, math problem, physics equation, grammar task, or test question is provided:
-  1. Accurately transcribe and solve the exact problem or question shown in the photo.
+  1. Accurately solve the exact problem or question shown in the photo.
   2. State the final answer clearly and prominently (e.g., **الإجابة النهائية:**).
   3. Detail only the essential, step-by-step reasoning or mathematical proof succinctly.
-  4. If multiple questions exist in the picture, number each question clearly (سؤال 1، سؤال 2...) and provide the direct solution for each.
+  4. If multiple questions exist in the picture, number each question clearly (سؤال 1، سؤال 2...) and provide direct solutions.
 
-GENERAL EXPERTISE:
-- Academic Studies (الواجبات المدرسية، رياضيات، فيزياء، كيمياء، علوم، لغات).
-- Deductive Reasoning & Logic (استنتاج سريع ومنطقي).
-- Quick Problem Solving (حلول فورية ومباشرة بدون إطالة).
-- General Knowledge & Startups.
+ALL-ROUND EXPERTISE:
+- Entertainment & Humor: نكت وفرفشة، ألعاب وتحديات ذهنية، فوازير، لو خيروك، ترشيحات أفلام ومسلسلات وأنمي.
+- Academic Studies: رياضيات، فيزياء، كيمياء، أحياء، لغات، قواعد، وتاريخ.
+- Logic & Problem Solving: استنتاج سريع، نصائح ذكية، وحلول عملية.
+- General Chat & Creativity: قصص ملهمة ومضحكة، أفكار مشاريع، ونقاشات ممتعة.
 
-LANGUAGE:
-- Multi-lingual: Fluently answer in the language of the prompt or homework image (${targetLanguage && targetLanguage !== 'auto' ? targetLanguage : 'match user/image language'}).
-- Formatting: Clean Markdown, bold answers, short bullet points. Fast to read and copy.
-${projectContext ? `\nActive User Project Context: Name: "${projectContext.projectName}", Summary: "${projectContext.summary}". Refer to this only if directly asked.` : ''}`;
+LANGUAGE & FORMATTING:
+- Multi-lingual: Fluently answer in the language of the prompt (${targetLanguage && targetLanguage !== 'auto' ? targetLanguage : 'match user/image language'}).
+- Formatting: Clean Markdown, bold punchlines, clear sections, readable and fun to read.
+${projectContext ? `\nActive User Project Context: Name: "${projectContext.projectName}", Summary: "${projectContext.summary}". Refer to this only if directly relevant.` : ''}${memoriesInstruction}`;
 
     // Format conversation history for multi-turn chat
     const formattedContents: any[] = [];
@@ -597,7 +648,7 @@ ${projectContext ? `\nActive User Project Context: Name: "${projectContext.proje
 
     const textPrompt = (message && message.trim())
       ? message.trim()
-      : (image ? "حل هذا الواجب الدراسي الظاهر في الصورة بدقة، واذكر الإجابة المباشرة والخطوات باختصار شديد وبدون إطالة." : "مرحباً");
+      : (image ? "حل هذا الواجب الدراسي الظاهر في الصورة بدقة، واذكر الإجابة المباشرة والخطوات باختصار شديد وبدون إطالة." : "مرحباً! أتحفني بشيء مسلٍ ومفيد.");
 
     currentUserParts.push({
       text: textPrompt,
@@ -608,17 +659,112 @@ ${projectContext ? `\nActive User Project Context: Name: "${projectContext.proje
       parts: currentUserParts,
     });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: formattedContents,
-      config: {
-        systemInstruction,
-        temperature: 0.25, // Lower temperature for instant, accurate, deterministic, concise responses
-      },
-    });
+    const isStreamingRequest = req.path.includes('stream') || req.body.stream === true || req.headers.accept?.includes('text/event-stream');
+    const FAST_MODEL = "gemini-3.1-flash-lite";
+    const FALLBACK_MODEL = "gemini-3.6-flash";
 
-    const answer = response.text || "تم الرد بدقة واختصار.";
-    res.json({ answer });
+    if (isStreamingRequest) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      if (typeof (res as any).flushHeaders === 'function') {
+        (res as any).flushHeaders();
+      }
+
+      try {
+        const streamResponse = await ai.models.generateContentStream({
+          model: FAST_MODEL,
+          contents: formattedContents,
+          config: {
+            systemInstruction,
+            temperature: isEntertainment ? 0.75 : 0.25,
+            maxOutputTokens: 1200,
+            thinkingConfig: { thinkingLevel: 'minimal' as any },
+          },
+        });
+
+        for await (const chunk of streamResponse) {
+          if (chunk.text) {
+            res.write(`data: ${JSON.stringify({ chunk: chunk.text })}\n\n`);
+          }
+        }
+        res.write(`data: [DONE]\n\n`);
+        res.end();
+        return;
+      } catch (streamErr: any) {
+        console.warn("Fast model stream error, falling back to 3.6-flash:", streamErr?.message || streamErr);
+        try {
+          const fallbackStream = await ai.models.generateContentStream({
+            model: FALLBACK_MODEL,
+            contents: formattedContents,
+            config: {
+              systemInstruction,
+              temperature: isEntertainment ? 0.75 : 0.25,
+              maxOutputTokens: 1200,
+              thinkingConfig: { thinkingLevel: 'minimal' as any },
+            },
+          });
+          for await (const chunk of fallbackStream) {
+            if (chunk.text) {
+              res.write(`data: ${JSON.stringify({ chunk: chunk.text })}\n\n`);
+            }
+          }
+          res.write(`data: [DONE]\n\n`);
+          res.end();
+          return;
+        } catch (e2: any) {
+          console.error("All stream attempts failed:", e2);
+          res.write(`data: ${JSON.stringify({ chunk: "⚡ حل مباشر وسريع: راجع المعطيات وطبّق القانون الرياضي مباشرة." })}\n\n`);
+          res.write(`data: [DONE]\n\n`);
+          res.end();
+          return;
+        }
+      }
+    }
+
+    // Non-streaming JSON path with ultra-fast model and minimal thinking
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: FAST_MODEL,
+        contents: formattedContents,
+        config: {
+          systemInstruction,
+          temperature: isEntertainment ? 0.75 : 0.25,
+          maxOutputTokens: 1200,
+          thinkingConfig: { thinkingLevel: 'minimal' as any },
+        },
+      });
+    } catch (primaryErr: any) {
+      console.warn("Primary fast model error, using fallback:", primaryErr?.message || primaryErr);
+      response = await ai.models.generateContent({
+        model: FALLBACK_MODEL,
+        contents: formattedContents,
+        config: {
+          systemInstruction,
+          temperature: isEntertainment ? 0.75 : 0.25,
+          maxOutputTokens: 1200,
+          thinkingConfig: { thinkingLevel: 'minimal' as any },
+        },
+      });
+    }
+
+    const answer = response.text || (isEntertainment ? "هاك طرفة سريعة لتروق مزاجك!" : "تم الرد بدقة واختصار.");
+
+    let detectedMemory: string | null = null;
+    const memoryPatterns = [
+      /(?:تذكر\s+أن|احفظ\s+عندك\s+أن|تذكر\s+إني|احفظ\s+أن|لا\s+تنسى\s+أن|remember\s+that|keep\s+in\s+mind\s+that)\s+([^\n.]+)/i,
+      /(?:اسمي\s+([^\n.]+))/i,
+    ];
+    for (const pattern of memoryPatterns) {
+      const match = (message || '').match(pattern);
+      if (match && match[1]) {
+        detectedMemory = match[1].trim();
+        break;
+      }
+    }
+
+    res.json({ answer, detectedMemory });
   } catch (error: any) {
     console.error("Error in chat-robot:", error);
 
@@ -626,17 +772,88 @@ ${projectContext ? `\nActive User Project Context: Name: "${projectContext.proje
     const isArabic = /[\u0600-\u06FF]/.test(msg) || !msg;
 
     const fallbackAnswer = isArabic
-      ? `**الإجابة السريعة والمباشرة:**
-${msg ? `بخصوص: "${msg}"` : 'تم استلام الصورة:'}
-1. **الحل المباشر:** يوصى بتطبيق القاعدة الأساسية للمسألة والوصول للنتيجة بخطوات محددة.
-2. **الخطوة العملية:** حدد المعطيات، طبّق القانون المباشر، واكتب الناتج النهائي بدقة.
-*(يمكنك إعادة إرسال السؤال أو التقاط صورة أوضح للواجب للحصول على حل فوري لكل مسألة)*`
-      : `**Direct Quick Answer:**
-${msg ? `Regarding: "${msg}"` : 'Image received:'}
-1. **Core Solution:** Apply the direct rule or formula to compute the target value immediately.
-2. **Key Step:** Isolate variables, perform calculation, and state final result clearly.`;
+      ? `**رد سريع ومباشر:**
+${msg ? `بخصوص: "${msg}"` : 'تم استلام طلبك:'}
+- نكتة سريعة: سألوا مبرمج ليش ما بيحب يطلع بالشمس؟ قال عشان فيها Bugs ومش قادر يعمل لها Debugging! 😄
+- للواجبات الدراسية: حدد المعطيات والمطلوب بدقة وطبق القانون الرياضي لحساب النتيجة النهائية.
+*(حدث تأخير شبكة، يمكنك إعادة الإرسال أو اختيار سؤال من الأزرار السريعة أدناه)*`
+      : `**Quick Universal Answer:**
+${msg ? `Regarding: "${msg}"` : 'Request received:'}
+- Quick riddle: What has keys but cannot open locks? A piano! 🎹
+- For homework: Send any math equation or problem photo for instant step-by-step resolution.`;
 
     res.json({ answer: fallbackAnswer });
+  }
+});
+
+// Dedicated Interactive Entertainment & Leisure API (Jokes, Riddles, Would-You-Rather, Movie Recommendations, Fun Scenarios)
+app.post("/api/entertainment-action", async (req, res) => {
+  try {
+    const { action, subType, userMood, customQuery, lang = 'ar' } = req.body;
+    const ai = getGenAIClient();
+    const isEn = lang === 'en';
+
+    let prompt = "";
+    if (action === 'joke') {
+      prompt = isEn
+        ? `Generate 2 hilarious, clean, modern jokes or witty observational comedy moments (category: ${subType || 'general/tech/daily life'}). Make them genuinely funny and crisp.`
+        : `أعطني نكتتين أو موقفين كوميديين في غاية الطرافة والذكاء وخفة الظل (التصنيف: ${subType || 'منوع، تقني، أو مواقف يومية طريفة'}). اجعل الأسلوب ممتعاً ولطيفاً بدون ابتذال.`;
+    } else if (action === 'riddle') {
+      prompt = isEn
+        ? `Generate an intriguing, clever riddle or brainteaser with difficulty: ${subType || 'medium'}. Include the riddle clearly, hint, and the answer hidden in a spoiler format.`
+        : `أعطني فزورة أو لغز ذكاء مشوق ومبتكر بدرجة صعوبة: ${subType || 'متوسطة'}. اكتب اللغز بوضوح، تلميح صغير، والحل محدد بوضوح تحت عنوان **الحل:**.`;
+    } else if (action === 'would_you_rather') {
+      prompt = isEn
+        ? `Generate a hilarious or deeply thought-provoking "Would You Rather" scenario with Option A and Option B, plus a funny commentary on what choosing each option says about the person.`
+        : `أنشئ تحدي "لو خيروك" ممتع ومضحك أو محيّر بين خيارين (الخيار أ والخيار ب)، مع تعليق كوميدي ذكي على ما يعنيه اختيار كل طرف.`;
+    } else if (action === 'movie') {
+      prompt = isEn
+        ? `Recommend 3 fantastic movies, series, or anime matching this mood/genre: "${userMood || subType || 'Exciting and smart'}". For each: Title, Year, Why it's a masterpiece in 2 lines, and where the thrill lies.`
+        : `اقترح 3 أعمال فنية رائعة (أفلام، مسلسلات، أو أنمي) تناسب المزاج التالي: "${userMood || subType || 'تشويق وغموض وذكاء'}". لكل عمل: الاسم، سنة الإنتاج، ولماذا يستحق المشاهدة في سطرين ممتعين، وتقييم سريع.`;
+    } else if (action === 'what_if') {
+      prompt = isEn
+        ? `Create a hilarious, creative "What If...?" speculative scenario about: "${customQuery || 'Historical figures had modern smartphones'}". Write 4 funny consequences in lively bullet points.`
+        : `اكتب سيناريو تخيلي مضحك جداً بعنوان "تخيل لو..." حول: "${customQuery || 'شخصيات تاريخية أو فيزيائية كان عندهم هواتف ذكية وتيك توك'}". اذكر 4 نتائج طريفة وغير متوقعة بأسلوب مسلٍ ومبتكر.`;
+    } else if (action === 'trivia') {
+      prompt = isEn
+        ? `Create 3 fun pop-culture or science/history trivia questions with 4 multiple-choice options (A, B, C, D) each, with the correct answer and a fun mind-blowing fact explaining it.`
+        : `أنشئ 3 أسئلة تريفيا ومسابقات مسلية ومتنوعة (ثقافة عامة، سينما، علوم غريبة) مع 4 خيارات (أ، ب، ج، د) لكل سؤال، مع توضيح الإجابة الصحيحة ومعلومة مدهشة مضحكة تشرحها.`;
+    } else {
+      prompt = isEn
+        ? `Provide an entertaining, inspiring, and fun leisure moment for the user: "${customQuery || 'Something fun and relaxing'}".`
+        : `قدّم استراحة ترفيهية خفيفة ومسلية ومبهجة للمستخدم بخصوص: "${customQuery || 'شيء مسلٍ ومبهج وممتع'}".`;
+    }
+
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+        config: {
+          temperature: 0.8,
+          thinkingConfig: { thinkingLevel: 'minimal' as any },
+          maxOutputTokens: 1000,
+        },
+      });
+    } catch (errFast: any) {
+      console.warn("Entertainment fast model failed, using fallback 3.6-flash:", errFast?.message);
+      response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: prompt,
+        config: {
+          temperature: 0.8,
+        },
+      });
+    }
+
+    res.json({ result: response.text || "استمتع بوقتك ولحظتك الترفيهية!" });
+  } catch (err: any) {
+    console.error("Error in /api/entertainment-action:", err);
+    res.json({
+      result: req.body.lang === 'en'
+        ? "Why don't scientists trust atoms? Because they make up everything! 😄 Have a wonderful fun time!"
+        : "سألوا واحد: شو أحسن طريقة لتبدأ الويكند؟ قال: تطفي المنبه وتفتح تطبيق GSE AI وتنبسط! 🎉"
+    });
   }
 });
 

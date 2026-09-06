@@ -16,6 +16,7 @@ import { SavedPlansModal } from './components/SavedPlansModal';
 import { UniversalSearchHub } from './components/UniversalSearchHub';
 import { AcademicResearchForm } from './components/AcademicResearchForm';
 import { AcademicResearchViewer } from './components/AcademicResearchViewer';
+import { EntertainmentHub } from './components/EntertainmentHub';
 import { ProjectPlan, GeneratePlanInput, AcademicResearchPlan, GenerateResearchInput } from './types';
 import {
   getSavedPlans,
@@ -46,7 +47,8 @@ import {
   Printer,
   Search,
   Flame,
-  GraduationCap
+  GraduationCap,
+  PartyPopper
 } from 'lucide-react';
 
 export default function App() {
@@ -66,7 +68,7 @@ export default function App() {
   const [robotInitialCategory, setRobotInitialCategory] = useState<string | undefined>(undefined);
   const [isTranslatingPlan, setIsTranslatingPlan] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'canvas' | 'pitch' | 'strategy' | 'calculator' | 'execution' | 'marketing' | 'financial' | 'advisor'>('all');
-  const [mainMode, setMainMode] = useState<'convert_idea' | 'skill_budget' | 'trending_search' | 'academic_research'>('academic_research');
+  const [mainMode, setMainMode] = useState<'convert_idea' | 'skill_budget' | 'trending_search' | 'academic_research' | 'entertainment'>('entertainment');
 
   // Load saved plans and research studies on initial render
   useEffect(() => {
@@ -252,6 +254,11 @@ export default function App() {
         savedCount={savedPlans.length + savedResearchPlans.length}
         onOpenSaved={() => setIsSavedModalOpen(true)}
         onNewPlan={handleNewPlan}
+        onOpenEntertainment={() => {
+          setCurrentPlan(null);
+          setCurrentResearch(null);
+          setMainMode('entertainment');
+        }}
         onOpenAcademicResearch={() => {
           setCurrentPlan(null);
           setCurrentResearch(null);
@@ -328,7 +335,24 @@ export default function App() {
           <div className="space-y-6">
             {/* Mode Switcher Segmented Control */}
             <div className="flex items-center justify-center">
-              <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner border border-slate-300/70 max-w-2xl w-full overflow-x-auto">
+              <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner border border-slate-300/70 max-w-3xl w-full overflow-x-auto">
+                <button
+                  type="button"
+                  id="tab-entertainment"
+                  onClick={() => setMainMode('entertainment')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    mainMode === 'entertainment'
+                      ? 'bg-pink-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <PartyPopper className="w-4 h-4" />
+                  <span>{isEn ? 'Entertainment & Fun' : 'تسلية وترفيه وفرفشة'}</span>
+                  <span className="hidden md:inline-block text-[10px] bg-pink-500/20 text-pink-100 font-extrabold px-1.5 py-0.5 rounded-full">
+                    🎉
+                  </span>
+                </button>
+
                 <button
                   type="button"
                   id="tab-academic-research"
@@ -340,7 +364,7 @@ export default function App() {
                   }`}
                 >
                   <GraduationCap className="w-4 h-4" />
-                  <span>{isEn ? 'Scientific Studies & Research' : 'أبحاث ودراسات علمية'}</span>
+                  <span>{isEn ? 'Studies & Research' : 'أبحاث ودراسات'}</span>
                   <span className="hidden md:inline-block text-[10px] bg-blue-500/20 text-blue-100 font-extrabold px-1.5 py-0.5 rounded-full">
                     🎓
                   </span>
@@ -393,7 +417,13 @@ export default function App() {
               </div>
             </div>
 
-            {mainMode === 'academic_research' ? (
+            {mainMode === 'entertainment' ? (
+              <EntertainmentHub
+                onOpenRobotWithQuery={(query, cat) => handleAskRobotTopic(query, cat)}
+                onSwitchToStudies={() => setMainMode('academic_research')}
+                onSwitchToProjects={() => setMainMode('convert_idea')}
+              />
+            ) : mainMode === 'academic_research' ? (
               <AcademicResearchForm
                 onSubmit={handleGenerateResearch}
                 isLoading={isResearchLoading}

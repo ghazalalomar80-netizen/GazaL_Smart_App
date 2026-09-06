@@ -27,7 +27,11 @@ import {
   Eye,
   Trash2,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Gamepad2,
+  Film,
+  Smile,
+  PartyPopper
 } from 'lucide-react';
 import { ProjectPlan } from '../types';
 import { useLanguage } from '../context/LanguageContext';
@@ -41,6 +45,7 @@ interface ChatMessage {
   lang?: string;
   image?: string;
   isNew?: boolean;
+  isStreaming?: boolean;
 }
 
 interface UniversalRobotModalProps {
@@ -154,6 +159,94 @@ const CATEGORIES = [
     ],
   },
   {
+    id: 'entertainment',
+    labelAr: 'الترفيه والتسلية والفرفشة',
+    labelEn: 'Entertainment & Fun',
+    icon: PartyPopper,
+    descAr: 'نكت، مواقف طريفة، قصص مضحكة، وتسلية خفيفة ترسم الابتسامة على وجهك',
+    descEn: 'Clever jokes, funny stories, humor, and witty entertainment',
+    color: 'from-pink-500 to-rose-500',
+    bgColor: 'bg-pink-50 text-pink-800 border-pink-200',
+    samplePromptsAr: [
+      'احكِ لي نكتة ذكية ومضحكة جداً عن التكنولوجيا أو الحياة اليومية.',
+      'تخيل لو كان نيوتن يوتيوبر وعنده قناة تيك توك، كيف راح يشرح التفاحة؟',
+      'أعطني 3 مواقف كوميدية طريفة لرفع المزاج والفرفشة.',
+      'شاركني فكرة مقلب لطيف ومسالم أعمله في صديقي بدون زعل.',
+    ],
+    samplePromptsEn: [
+      'Tell me a really witty, clever joke about tech or daily life.',
+      'Imagine if Isaac Newton was a modern TikToker explaining the apple.',
+      'Give me 3 hilarious observational comedy moments to brighten my day.',
+      'Share a harmless, fun prank idea to play with friends.',
+    ],
+  },
+  {
+    id: 'games',
+    labelAr: 'ألعاب وفوازير الذكاء',
+    labelEn: 'Games, Puzzles & Trivia',
+    icon: Gamepad2,
+    descAr: 'ألغاز محيرة، فوازير شعرية، لعبة لو خيروك، وتحدي الـ 20 سؤال مع الروبوت',
+    descEn: 'Brainteasers, riddles, 20 Questions game, and Would You Rather dilemmas',
+    color: 'from-fuchsia-500 to-purple-600',
+    bgColor: 'bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200',
+    samplePromptsAr: [
+      'العب معي لعبة 20 سؤال! فكرت في شيء في بالي وعليك تخمينه بأسئلة نعم/لا.',
+      'أعطني فزورة ذكاء محيرة مع تلميح ذكي وسأحاول حلها معك.',
+      'اطرح عليّ تحدي "لو خيروك" بين خيارين صعبين ومضحكين.',
+      'اختبرني بمسابقة تريفيا سريعة من 3 أسئلة في السينما أو الثقافة.',
+    ],
+    samplePromptsEn: [
+      'Play 20 Questions with me! I have something in mind, guess it with Yes/No questions.',
+      'Give me a tricky brainteaser with a smart hint for me to solve.',
+      'Hit me with a funny and tough "Would You Rather" scenario.',
+      'Host a quick 3-question trivia challenge about movies or pop culture.',
+    ],
+  },
+  {
+    id: 'movies',
+    labelAr: 'السينما والمسلسلات والأنمي',
+    labelEn: 'Movies, Series & Anime',
+    icon: Film,
+    descAr: 'ترشيحات أفلام حسب المود، نقاشات الحبكات، واكتشاف أفضل المسلسلات والأنمي',
+    descEn: 'Personalized film recommendations, anime discussions, and plot analysis',
+    color: 'from-red-500 to-orange-500',
+    bgColor: 'bg-red-50 text-red-800 border-red-200',
+    samplePromptsAr: [
+      'اقترح لي فيلم غموض وتشويق ذكي بدون ملل وبحبكة صادمة لنهاية الأسبوع.',
+      'ما هي أفضل 3 مسلسلات قصيرة يمكن إنهاؤها في يومين وتستحق المشاهدة؟',
+      'رشح لي أنمي أسطوري برسم رائع وقصة عميقة مثل مذكرة الموت أو فيريرين.',
+      'لخص لي حبكة فيلم شهير بدون حرق النهاية واذكر لماذا هو مميز.',
+    ],
+    samplePromptsEn: [
+      'Recommend a mind-bending mystery thriller with a shocking twist.',
+      'Top 3 mini-series binge-worthy in one weekend.',
+      'Suggest a legendary anime with gorgeous animation and deep plot.',
+      'Summarize a cinematic masterpiece without spoilers.',
+    ],
+  },
+  {
+    id: 'chat_leisure',
+    labelAr: 'سوالف وفضفضة حرة',
+    labelEn: 'Friendly Chat & Leisure',
+    icon: Smile,
+    descAr: 'دردشة عفوية وممتعة، نصائح لقضاء وقت ممتع، واستراحة لكل شيء في الحياة',
+    descEn: 'Casual friendly banter, leisure ideas, weekend plans, and daily chat',
+    color: 'from-teal-500 to-emerald-600',
+    bgColor: 'bg-teal-50 text-teal-800 border-teal-200',
+    samplePromptsAr: [
+      'مساء الخير! كيف حالك اليوم؟ أتحفني بموضوع ممتع نسولف فيه.',
+      'أحس بملل، اقترح لي 5 أفكار ممتعة ومجانية أقضي فيها عطلة نهاية الأسبوع.',
+      'لو عندك فرصة تسافر عبر الزمن ليوم واحد، لأي عصر ستذهب ولماذا؟',
+      'كيف أجعل يومي أكثر بهجة وإيجابية بعادات بسيطة وسريعة؟',
+    ],
+    samplePromptsEn: [
+      'Hey there! How are you? Bring up a fun, engaging topic to talk about.',
+      'Feeling bored, suggest 5 fun free things I can do this weekend.',
+      'If you could time-travel for one day, where would you go and why?',
+      'Quick simple habits to add more joy and lightness to daily routine.',
+    ],
+  },
+  {
     id: 'business',
     labelAr: 'ريادة الأعمال والمشاريع',
     labelEn: 'Startups & Business',
@@ -252,16 +345,18 @@ export const UniversalRobotModal: React.FC<UniversalRobotModalProps> = ({
         id: 'msg_welcome',
         role: 'model',
         content: isEn
-          ? `👋 Welcome! I am the **GSE Fast Homework & Knowledge Robot**.
-⚡ **Fast Typing & Direct Answers Mode Active**: I write rapidly and do NOT ramble or talk too much!
-- 📸 **Homework Photo Capture:** Click the camera icon to take a photo of your school assignment, textbook, or worksheet, and I will solve it directly!
-- 🎓 **School & University Studies:** Direct answers with essential steps for Math, Physics, Chemistry, Biology, and Languages.
-- 🧠 **Logic & Problem Solving:** Straight to the point solutions without fluff.`
-          : `👋 مرحباً بك! أنا **روبوت GSE الذكي السريع للواجبات والمعرفة**.
-⚡ **نمط الكتابة السريعة والإجابة المباشرة مفعل:** أكتب بسرعة فائقة ولا أتحدث كثيراً أو أطيل في المقدمات!
-- 📸 **التقاط صور الواجبات:** اضغط على زر الكاميرا لالتقاط صورة فورية لورقة الواجب الدراسي أو كتاب المسائل، وسأحلها لك مباشرة!
-- 🎓 **المباحث والواجبات المدرسية:** إجابات نهائية دقيقة مع خطوات الحل الأساسية لمسائل الرياضيات، الفيزياء، الكيمياء، النحو واللغات.
-- 🧠 **حلول فورية ومباشرة:** الإجابة تظهر لك بسرعة فائقة وبدون كلام زائد.`,
+          ? `👋 Welcome! I am the **GSE Universal AI Robot** — built for **Everything**: studies, homework, entertainment, fun, gaming, and life solutions!
+⚡ **Ultra-Fast & Versatile Mode Active:**
+- 🎮 **Entertainment & Fun:** Witty jokes, brainteasers, 20 Questions game, "Would You Rather", and fun chats!
+- 🎬 **Movies & Pop Culture:** Personalized movie, anime, and series recommendations matching your vibe.
+- 📸 **Homework Photo Capture:** Click the camera to solve school assignments, math equations, physics, or science problems with clear answers.
+- 🚀 **Projects & Real Life:** Instant advice, brainstorming, and problem solving.`
+          : `👋 مرحباً بك! أنا **روبوت GSE الذكي الشامل** — مصمم لخدمتك في **كل شيء**: الدراسة، الترفيه والتسلية، حل الواجبات، الألعاب، وكل ما يخطر ببالك!
+⚡ **نمط ذكي وسريع وشامل مفعل:**
+- 🎮 **الترفيه والفرفشة والألعاب:** نكت ذكية ومضحكة، فوازير وألغاز، لعبة 20 سؤال، وتحدي "لو خيروك"!
+- 🎬 **السينما والأنمي:** ترشيحات أفلام ومسلسلات وأنمي أسطورية حسب مودك ونفسيتك.
+- 📸 **حل الواجبات بالصور:** اضغط زر الكاميرا لالتقاط صورة ورقة الامتحان أو مسألة الرياضيات والفيزياء، وسأحلها لك فوراً بإجابة واضحة.
+- 🚀 **المشاريع والحياة:** أفكار مشاريع، حلول مشكلات عملية، وسوالف خفيفة بأي وقت.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ];
@@ -442,7 +537,10 @@ export const UniversalRobotModal: React.FC<UniversalRobotModalProps> = ({
 
       const res = await fetch('/api/chat-robot', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream, application/json',
+        },
         body: JSON.stringify({
           message: query || (currentImg ? defaultHomeworkPrompt : ''),
           image: currentImg || null,
@@ -450,6 +548,7 @@ export const UniversalRobotModal: React.FC<UniversalRobotModalProps> = ({
           targetLanguage: targetLang,
           topicCategory: selectedCategory,
           conciseMode: true,
+          stream: true,
           projectContext: currentPlan
             ? {
                 projectName: currentPlan.projectName,
@@ -463,18 +562,83 @@ export const UniversalRobotModal: React.FC<UniversalRobotModalProps> = ({
         throw new Error('Failed to get answer');
       }
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      const aiMsgId = 'msg_' + Date.now() + '_ai';
 
-      const modelMsg: ChatMessage = {
-        id: 'msg_' + Date.now() + '_ai',
-        role: 'model',
-        content: data.answer || (isEn ? 'Solution completed directly.' : 'تم حل الواجب بدقة واختصار.'),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        category: selectedCategory,
-        isNew: true,
-      };
+      if (contentType.includes('text/event-stream') && res.body) {
+        // Create initial streaming message
+        const initialModelMsg: ChatMessage = {
+          id: aiMsgId,
+          role: 'model',
+          content: '',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          category: selectedCategory,
+          isStreaming: true,
+        };
 
-      setMessages((prev) => [...prev, modelMsg]);
+        setMessages((prev) => [...prev, initialModelMsg]);
+        setIsLoading(false);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = '';
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith(':')) continue;
+            if (trimmed === 'data: [DONE]') continue;
+            if (trimmed.startsWith('data: ')) {
+              try {
+                const jsonStr = trimmed.slice(6);
+                const parsed = JSON.parse(jsonStr);
+                if (parsed.chunk) {
+                  accumulatedText += parsed.chunk;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === aiMsgId ? { ...m, content: accumulatedText } : m
+                    )
+                  );
+                }
+              } catch {
+                // Ignore parse errors on partial frames
+              }
+            }
+          }
+        }
+
+        // Finalize streaming flag
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMsgId
+              ? {
+                  ...m,
+                  content: accumulatedText.trim() || (isEn ? 'Solution completed directly.' : 'تم حل الواجب بدقة واختصار.'),
+                  isStreaming: false,
+                }
+              : m
+          )
+        );
+      } else {
+        const data = await res.json();
+        const modelMsg: ChatMessage = {
+          id: aiMsgId,
+          role: 'model',
+          content: data.answer || (isEn ? 'Solution completed directly.' : 'تم حل الواجب بدقة واختصار.'),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          category: selectedCategory,
+          isNew: true,
+        };
+        setMessages((prev) => [...prev, modelMsg]);
+      }
     } catch (err: any) {
       console.error('Error contacting robot:', err);
       const errorMsg: ChatMessage = {
@@ -625,22 +789,26 @@ export const UniversalRobotModal: React.FC<UniversalRobotModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-extrabold text-base sm:text-lg tracking-tight">
-                  {isEn ? 'GSE Homework & Fast AI Robot' : 'روبوت GSE لحل الواجبات والمعرفة'}
+                  {isEn ? 'GSE Universal AI Robot (For Everything)' : 'روبوت GSE الذكي الشامل (لكل شيء)'}
                 </h2>
-                {/* Speed & Direct Mode Tag */}
+                {/* Mode Badges */}
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-400/30 flex items-center gap-1">
+                  <PartyPopper className="w-3 h-3 text-pink-400" />
+                  <span>{isEn ? 'Fun & Leisure' : 'ترفيه وفرفشة'}</span>
+                </span>
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
                   <Zap className="w-3 h-3 text-amber-400 fill-amber-400" />
                   <span>{isEn ? 'Fast & Concise' : 'سريع وموجز'}</span>
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/30 text-cyan-300 border border-indigo-400/30 hidden md:flex items-center gap-1">
                   <Camera className="w-3 h-3" />
-                  <span>{isEn ? 'Photo Solver' : 'التقاط صور الواجبات'}</span>
+                  <span>{isEn ? 'Photo Solver' : 'حل الواجبات بالصور'}</span>
                 </span>
               </div>
               <p className="text-xs text-slate-300 hidden sm:block">
                 {isEn
-                  ? 'Captures homework photos • Fast typing • Concise direct answers without excessive talk'
-                  : 'التقاط صور الواجبات الدراسية • سريع الكتابة • إجابات مباشرة وموجزة بدون كلام زائد'}
+                  ? 'Studies • Homework photo solver • Entertainment & games • Movies • Solutions for everything!'
+                  : 'للدراسة • حل الواجبات بالصور • تسلية وألعاب وفوازير • أفلام • وحلول لكل شيء!'}
               </p>
             </div>
           </div>

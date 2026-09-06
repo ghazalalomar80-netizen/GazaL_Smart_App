@@ -1,6 +1,6 @@
 {
   "name": "GSE AI",
-  "description": "منصة ذكاء اصطناعي للدراسات والأبحاث العلمية وخطط المشاريع الشاملة، مع روبوت بحثي متعدد اللغات وتصدير PDF احترافي",
+  "description": "منصة ذكية متكاملة للدراسة، الترفيه والتسلية، حل الواجبات بالصور، وتطوير المشاريع، مع روبوت ذكي متعدد المهام لكل شيء",
   "requestFramePermissions": ["microphone", "camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -14,7 +14,8 @@ import {
   Languages,
   Loader2,
   Search,
-  GraduationCap
+  GraduationCap,
+  PartyPopper
 } from 'lucide-react';
 import { ProjectPlan } from '../types';
 import { useLanguage } from '../context/LanguageContext';
@@ -27,10 +28,11 @@ interface HeaderProps {
   onOpenSkillMatcher?: () => void;
   onOpenTrendingSearch?: () => void;
   onOpenAcademicResearch?: () => void;
+  onOpenEntertainment?: () => void;
   onOpenRobot?: () => void;
   onTranslatePlan?: () => void;
   isTranslatingPlan?: boolean;
-  activeMode?: 'convert_idea' | 'skill_budget' | 'trending_search' | 'academic_research';
+  activeMode?: 'convert_idea' | 'skill_budget' | 'trending_search' | 'academic_research' | 'entertainment';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -41,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSkillMatcher,
   onOpenTrendingSearch,
   onOpenAcademicResearch,
+  onOpenEntertainment,
   onOpenRobot,
   onTranslatePlan,
   isTranslatingPlan = false,
@@ -260,6 +263,25 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </button>
             </>
+          )}
+
+          {onOpenEntertainment && !currentPlan && (
+            <button
+              id="btn-nav-entertainment"
+              onClick={onOpenEntertainment}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                activeMode === 'entertainment'
+                  ? 'bg-pink-50 text-pink-700 border border-pink-200 shadow-2xs font-bold'
+                  : 'text-slate-600 hover:text-pink-700 hover:bg-pink-50/50'
+              }`}
+              title={isEn ? 'Entertainment, Games & Leisure Hub' : 'عالم التسلية والترفيه والفرفشة والألعاب'}
+            >
+              <PartyPopper className="w-3.5 h-3.5 text-pink-600" />
+              <span className="hidden sm:inline">{isEn ? 'Entertainment' : 'تسلية وترفيه'}</span>
+              <span className="text-[10px] bg-pink-100 text-pink-800 font-extrabold px-1.5 py-0.5 rounded-full">
+                🎉
+              </span>
+            </button>
           )}
 
           {onOpenAcademicResearch && !currentPlan && (
